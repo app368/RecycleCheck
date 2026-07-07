@@ -22,6 +22,15 @@ struct ResultView: View {
     /// Состояние догрузки подтверждения вердикта (СП4.1)
     @State private var confirmationState: ConfirmationState = .loading
 
+    /// Исправленный вердикт — заполняется, если Claude нашёл противоречие
+    /// между вердиктом СП3 и содержимым упоминаний (СП4.1)
+    @State private var correctedStatus: RecycleStatus?
+
+    /// Текущий отображаемый статус: исправленный, если была коррекция
+    private var currentStatus: RecycleStatus {
+        correctedStatus ?? result.status
+    }
+
     /// Флаг показа страницы источника внутри приложения
     @State private var showSourcePage = false
 
@@ -48,8 +57,16 @@ struct ResultView: View {
                     .multilineTextAlignment(.center)
                 
                 // MARK: - Статус пригодности
-                
+
                 statusBadge
+
+                // MARK: - Плашка коррекции вердикта (СП4.1)
+                // Поясняет смену бейджа после детальной проверки,
+                // чтобы она не выглядела сбоем для пользователя
+
+                if correctedStatus != nil {
+                    verdictUpdatedNote
+                }
                 
                 // MARK: - Фото предмета
                 
@@ -113,14 +130,26 @@ struct ResultView: View {
     }
     
     // MARK: - Бейдж со статусом
-    
+
     private var statusBadge: some View {
-        Text(result.status.rawValue)
+        Text(currentStatus.rawValue)
             .font(.headline)
             .foregroundStyle(statusColor)
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
             .background(statusColor.opacity(0.1))
+            .clipShape(Capsule())
+    }
+
+    // MARK: - Плашка «вердикт обновлён» (СП4.1)
+
+    private var verdictUpdatedNote: some View {
+        Label("Verdict updated after detailed check", systemImage: "arrow.triangle.2.circlepath")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.gray.opacity(0.1))
             .clipShape(Capsule())
     }
     
@@ -205,6 +234,7 @@ struct ResultView: View {
     private func loadConfirmationIfNeeded() async {
         // Подтверждение пришло готовым — показываем сразу
         if let existing = result.confirmation {
+            applyCorrectionIfNeeded(from: existing)
             confirmationState = .loaded(existing)
             return
         }
@@ -233,6 +263,7 @@ struct ResultView: View {
                     verdict: result.status
                 )
 
+            applyCorrectionIfNeeded(from: confirmation)
             confirmationState = .loaded(confirmation)
             saveConfirmationToHistory(confirmation)
         } catch {
@@ -242,10 +273,22 @@ struct ResultView: View {
         }
     }
 
-    /// Дозапись полученного confirmation в запись истории
+    /// Применяет коррекцию вердикта, если Claude нашёл противоречие (СП4.1).
+    /// Бейдж меняется с анимацией, под ним появляется плашка-пояснение
+    private func applyCorrectionIfNeeded(from confirmation: Confirmation) {
+        guard let corrected = confirmation.correctedStatus,
+              corrected != result.status else { return }
+        withAnimation {
+            correctedStatus = corrected
+        }
+    }
+
+    /// Дозапись полученного confirmation в запись истории.
+    /// Статус сохраняется с учётом коррекции — история хранит итоговый вердикт
     private func saveConfirmationToHistory(_ confirmation: Confirmation) {
         guard let entryID = historyEntryID else { return }
         var updatedResult = result
+        updatedResult.status = currentStatus
         updatedResult.confirmation = confirmation
         storage.updateHistoryResult(entryID: entryID, result: updatedResult)
     }
@@ -289,9 +332,9 @@ struct ResultView: View {
     
     // MARK: - Вспомогательные свойства для стилизации по статусу
     
-    /// Цвет, соответствующий статусу
+    /// Цвет, соответствующий текущему статусу (с учётом коррекции)
     private var statusColor: Color {
-        switch result.status {
+        switch currentStatus {
         case .recyclable:
             return .green
         case .notRecyclable:
@@ -300,10 +343,10 @@ struct ResultView: View {
             return .orange
         }
     }
-    
-    /// SF Symbol, соответствующий статусу
+
+    /// SF Symbol, соответствующий текущему статусу (с учётом коррекции)
     private var statusSystemImage: String {
-        switch result.status {
+        switch currentStatus {
         case .recyclable:
             return "checkmark.circle.fill"
         case .notRecyclable:
