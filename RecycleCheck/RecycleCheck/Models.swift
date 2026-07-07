@@ -242,7 +242,10 @@ struct UserProfile: Codable {
 struct CheckHistoryEntry: Identifiable, Codable {
     let id: UUID
     let item: RecycleItem
-    let result: SearchResult?
+
+    /// Результат проверки. Изменяемый: после догрузки confirmation (СП4.1)
+    /// запись обновляется через StorageService.updateHistoryResult
+    var result: SearchResult?
     
     /// Был ли отправлен email-запрос на добавление (СП5)
     var emailSent: Bool

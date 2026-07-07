@@ -23,10 +23,8 @@ struct HistoryDetailView: View {
                 // MARK: - Описания предмета
                 descriptionsSection
                 
-                // MARK: - Доказательство с сайта
-                if let evidence = entry.result?.evidence, !evidence.isEmpty {
-                    evidenceSection(evidence)
-                }
+                // MARK: - Подтверждение вердикта (СП4.1) или старый evidence
+                confirmationOrEvidenceSection
                 
                 // MARK: - Информация о проверке
                 infoSection
@@ -102,14 +100,35 @@ struct HistoryDetailView: View {
         }
     }
     
-    // MARK: - Секция доказательства с сайта
-    
-    private func evidenceSection(_ evidence: String) -> some View {
-        DetailCard(
-            title: "Evidence from website",
-            icon: "doc.text.magnifyingglass",
-            content: evidence
-        )
+    // MARK: - Подтверждение вердикта (СП4.1)
+
+    /// Единый путь для всех записей: секция подтверждения + свёрнутый evidence.
+    /// Если confirmation в записи нет (догрузка не удалась или запись старая) —
+    /// показываем «Confirmation unavailable», evidence остаётся доступен ниже.
+    /// В истории догрузки нет: показываем то, что было сохранено при проверке.
+    @ViewBuilder
+    private var confirmationOrEvidenceSection: some View {
+        // Для notFound подтверждения не бывает — секцию не показываем
+        if let result = entry.result, result.status != .notFound {
+            if let confirmation = result.confirmation {
+                ConfirmationSectionView(state: .loaded(confirmation))
+            } else {
+                ConfirmationSectionView(state: .unavailable)
+            }
+        }
+
+        // Сырой evidence — свёрнут, для любой записи, где он есть
+        if let evidence = entry.result?.evidence, !evidence.isEmpty {
+            DisclosureGroup("Show raw evidence") {
+                Text(evidence)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 4)
+            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
     }
     
     // MARK: - Секция информации
