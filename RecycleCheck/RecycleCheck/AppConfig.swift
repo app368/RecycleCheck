@@ -9,8 +9,9 @@ enum AppConfig {
     
     // MARK: - Значения по умолчанию
     
-    /// URL сайта по умолчанию
-    static let defaultWebsiteURL = "https://example-recycling-site.com"
+    /// URL сайта по умолчанию — общенациональный гид EPA по переработке.
+    /// Пользователь может заменить на сайт своего штата/города в Settings
+    static let defaultWebsiteURL = "https://www.epa.gov/recycle"
     
     /// Email по умолчанию
     static let defaultRequestEmail = "info@example-recycling-site.com"

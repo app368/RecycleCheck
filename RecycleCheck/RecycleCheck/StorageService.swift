@@ -18,6 +18,7 @@ final class StorageService {
         static let checkHistory = "recyclecheck_check_history"
         static let cachedTargetURLs = "recyclecheck_cached_target_urls"
         static let cachedBaseURL = "recyclecheck_cached_base_url"
+        static let cachedTargetURLsDate = "recyclecheck_cached_target_urls_date"
     }
     
     private init() {}
@@ -170,10 +171,17 @@ final class StorageService {
     // MARK: - Кэш целевых страниц сайта (СП3.3)
     
     /// Сохранение списка целевых URL для указанного базового URL сайта.
-    /// Ключ кэша хранится в нормализованном виде
+    /// Ключ кэша хранится в нормализованном виде, дата сборки — рядом
     func saveTargetURLs(_ urls: [String], forBaseURL baseURL: String) {
         defaults.set(urls, forKey: Keys.cachedTargetURLs)
         defaults.set(URLNormalizer.normalize(baseURL), forKey: Keys.cachedBaseURL)
+        defaults.set(Date(), forKey: Keys.cachedTargetURLsDate)
+    }
+
+    /// Дата последней сборки кэша целевых URL.
+    /// nil — кэш пуст или собран до появления датировки
+    func targetURLsCacheDate() -> Date? {
+        defaults.object(forKey: Keys.cachedTargetURLsDate) as? Date
     }
 
     /// Загрузка списка целевых URL из кэша.
@@ -192,5 +200,6 @@ final class StorageService {
     func clearTargetURLsCache() {
         defaults.removeObject(forKey: Keys.cachedTargetURLs)
         defaults.removeObject(forKey: Keys.cachedBaseURL)
+        defaults.removeObject(forKey: Keys.cachedTargetURLsDate)
     }
 }

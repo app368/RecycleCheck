@@ -10,7 +10,9 @@ struct SettingsView: View {
     
     @State private var websiteURL: String = ""
     @State private var requestEmail: String = ""
-    @State private var showSavedAlert = false
+
+    /// Немодальное подтверждение сохранения (вместо алерта «Saved»)
+    @State private var savedNote: String?
     
     /// Состояние обнаружения целевых страниц
     @State private var isDiscovering = false
@@ -52,9 +54,9 @@ struct SettingsView: View {
                     }
                 }
             } header: {
-                Text("Recycling website URL")
+                Text("Source recycling website URL")
             } footer: {
-                Text("The website where the app searches for recyclable items.")
+                Text("The website where the app searches for recyclable items. By default it uses the U.S. EPA recycling guide. You can replace it with your state or local recycling program website for local rules.")
             }
             
             // MARK: - Секция email
@@ -80,24 +82,30 @@ struct SettingsView: View {
                     }
                 }
             } header: {
-                Text("Request email")
+                Text("Email for messages to the source website")
             } footer: {
-                Text("Email address for submitting items not found on the website.")
+                Text("Here you can specify the email address for submitting items not found on the website.")
             }
             
-            // MARK: - Статус обнаружения страниц
-            
-            if isDiscovering || discoveryResult != nil {
+            // MARK: - Секция обнаружения страниц: статус кэша + Refresh
+
+            if !websiteURL.isEmpty {
                 Section {
                     if isDiscovering {
-                        // Индикатор прогресса обнаружения
+                        // Индикатор прогресса обнаружения — заметный, синий
                         HStack(spacing: 12) {
                             ProgressView()
+                                .controlSize(.large)
+                                .tint(.blue)
                             Text("Discovering pages...")
-                                .foregroundStyle(.secondary)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.blue)
                         }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 4)
                     } else if let result = discoveryResult {
-                        // Результат обнаружения
+                        // Состояние кэша: количество страниц и дата сборки
                         HStack(spacing: 8) {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
@@ -105,30 +113,60 @@ struct SettingsView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
+                    } else {
+                        Text("No pages discovered yet")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
+
+                    // Принудительное обновление кэша без смены URL
+                    Button {
+                        startDiscovery(for: AppConfig.recyclingWebsiteURL)
+                    } label: {
+                        Label("Refresh source pages", systemImage: "arrow.clockwise")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(.blue.opacity(0.1))
+                            .foregroundStyle(.blue)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                    .disabled(isDiscovering)
                 } header: {
                     Text("Page discovery")
+                } footer: {
+                    Text("Re-discovers the website pages used for item search — refresh if the website content has changed.")
                 }
             }
-            
-            // MARK: - Кнопка сохранения
-            Section {
-                Button {
-                    saveSettings()
-                } label: {
-                    HStack {
-                        Spacer()
-                        Text("Save")
-                            .fontWeight(.semibold)
-                        Spacer()
-                    }
-                }
-                .disabled(isDiscovering)
-            }
+
         }
-        .navigationTitle("Settings")
-        .navigationBarTitleDisplayMode(.large)
+        // Свой закреплённый заголовок вместо системного large title,
+        // который сворачивается при скролле
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HStack {
+                Text("Settings")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
+            .background(Color(.systemGroupedBackground))
+        }
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            // Save — в навбаре справа, закреплена и не уезжает при скролле.
+            // Живое подтверждение: кнопка на 2,5 с превращается в «✓ Saved»
+            ToolbarItem(placement: .topBarTrailing) {
+                saveToolbarButton
+            }
+
             // Кнопка скрытия клавиатуры
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -140,11 +178,6 @@ struct SettingsView: View {
         .onAppear {
             loadSettings()
         }
-        .alert("Saved", isPresented: $showSavedAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Settings have been saved.")
-        }
         .alert("Page discovery failed", isPresented: $showDiscoveryError) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -152,16 +185,63 @@ struct SettingsView: View {
         }
     }
     
+    // MARK: - Кнопка Save в навбаре
+
+    /// Приглушённый тёмно-зелёный для состояния «Saved» —
+    /// символизирует завершённость операции
+    private let savedTint = Color(red: 0.24, green: 0.50, blue: 0.32)
+
+    /// Save в правом верхнем углу. После нажатия на 2,5 секунды
+    /// превращается в «✓ Saved» с приглушённой заливкой — реакция на каждое нажатие
+    private var saveToolbarButton: some View {
+        Button {
+            // Защита от повторных нажатий, пока показывается «Saved»
+            guard savedNote == nil else { return }
+            saveSettings()
+        } label: {
+            // Одна кнопка с меняющимся содержимым, без анимации перехода —
+            // иначе Save и Saved на мгновение видны одновременно
+            HStack(spacing: 4) {
+                if savedNote != nil {
+                    Image(systemName: "checkmark")
+                }
+                Text(savedNote != nil ? "Saved" : "Save")
+            }
+            .fontWeight(.semibold)
+            // Шире по горизонтали — прямоугольник, а не овал
+            .padding(.horizontal, 20)
+        }
+        // Зелёная заливка с белым текстом; «Saved» — приглушённый тёмно-зелёный;
+        // при блокировке — системно-серая
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.roundedRectangle(radius: 6))
+        .tint(savedNote != nil ? savedTint : .green)
+        .disabled(isDiscovering)
+    }
+
     // MARK: - Загрузка текущих настроек
     
     private func loadSettings() {
         websiteURL = AppConfig.recyclingWebsiteURL
         requestEmail = AppConfig.requestEmail
-        
-        // Показываем кэшированный результат обнаружения, если есть
-        if let cached = storage.loadTargetURLs(forBaseURL: websiteURL) {
-            discoveryResult = "\(cached.count) pages found"
+        updateDiscoveryStatus()
+    }
+
+    // MARK: - Статус кэша целевых страниц
+
+    /// Собирает строку состояния кэша: количество страниц + дата сборки.
+    /// «6 pages found · updated Jul 7, 2026»
+    private func updateDiscoveryStatus() {
+        guard let cached = storage.loadTargetURLs(forBaseURL: AppConfig.recyclingWebsiteURL),
+              !cached.isEmpty else {
+            discoveryResult = nil
+            return
         }
+        var status = "\(cached.count) pages found"
+        if let date = storage.targetURLsCacheDate() {
+            status += " · updated \(date.formatted(date: .abbreviated, time: .omitted))"
+        }
+        discoveryResult = status
     }
     
     // MARK: - Сохранение настроек
@@ -182,9 +262,24 @@ struct SettingsView: View {
         // Если URL изменился — запускаем обнаружение целевых страниц
         if newURL != previousURL && !newURL.isEmpty {
             storage.clearTargetURLsCache()
+            discoveryResult = nil
             startDiscovery(for: newURL)
         } else {
-            showSavedAlert = true
+            showSavedNote()
+        }
+    }
+
+    // MARK: - Живое подтверждение сохранения
+
+    /// Переключает кнопку в состояние «✓ Saved» и возвращает через пару секунд.
+    /// Смена мгновенная, без анимации — иначе оба состояния видны одновременно
+    private func showSavedNote() {
+        savedNote = "Settings saved"
+        Task {
+            try? await Task.sleep(for: .seconds(2.5))
+            await MainActor.run {
+                savedNote = nil
+            }
         }
     }
     
@@ -204,8 +299,8 @@ struct SettingsView: View {
                 
                 await MainActor.run {
                     isDiscovering = false
-                    discoveryResult = "\(targetURLs.count) pages found"
-                    showSavedAlert = true
+                    updateDiscoveryStatus()
+                    showSavedNote()
                 }
             } catch {
                 await MainActor.run {
