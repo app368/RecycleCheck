@@ -54,9 +54,9 @@ struct SettingsView: View {
                     }
                 }
             } header: {
-                Text("Recycling website URL")
+                Text("Source recycling website URL")
             } footer: {
-                Text("The website where the app searches for recyclable items.")
+                Text("The website where the app searches for recyclable items. By default it uses the U.S. EPA recycling guide. You can replace it with your state or local recycling program website for local rules.")
             }
             
             // MARK: - Секция email
@@ -92,12 +92,18 @@ struct SettingsView: View {
             if !websiteURL.isEmpty {
                 Section {
                     if isDiscovering {
-                        // Индикатор прогресса обнаружения
+                        // Индикатор прогресса обнаружения — заметный, синий
                         HStack(spacing: 12) {
                             ProgressView()
+                                .controlSize(.large)
+                                .tint(.blue)
                             Text("Discovering pages...")
-                                .foregroundStyle(.secondary)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.blue)
                         }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 4)
                     } else if let result = discoveryResult {
                         // Состояние кэша: количество страниц и дата сборки
                         HStack(spacing: 8) {
@@ -137,41 +143,30 @@ struct SettingsView: View {
                 }
             }
 
-            // MARK: - Кнопка сохранения
-            // Полноценная зелёная кнопка в стиле основных кнопок приложения
-            Section {
-                Button {
-                    saveSettings()
-                } label: {
-                    Text("Save")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(isDiscovering ? .gray : .green)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                }
-                .buttonStyle(.plain)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
-                .disabled(isDiscovering)
-            } footer: {
-                // Живое подтверждение: появляется на каждое нажатие
-                // и само исчезает через пару секунд
-                if let savedNote {
-                    Label(savedNote, systemImage: "checkmark.circle.fill")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.green)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, 4)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-            }
         }
-        .navigationTitle("Settings")
-        .navigationBarTitleDisplayMode(.large)
+        // Свой закреплённый заголовок вместо системного large title,
+        // который сворачивается при скролле
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HStack {
+                Text("Settings")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
+            .background(Color(.systemGroupedBackground))
+        }
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            // Save — в навбаре справа, закреплена и не уезжает при скролле.
+            // Живое подтверждение: кнопка на 2,5 с превращается в «✓ Saved»
+            ToolbarItem(placement: .topBarTrailing) {
+                saveToolbarButton
+            }
+
             // Кнопка скрытия клавиатуры
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -190,6 +185,40 @@ struct SettingsView: View {
         }
     }
     
+    // MARK: - Кнопка Save в навбаре
+
+    /// Приглушённый тёмно-зелёный для состояния «Saved» —
+    /// символизирует завершённость операции
+    private let savedTint = Color(red: 0.24, green: 0.50, blue: 0.32)
+
+    /// Save в правом верхнем углу. После нажатия на 2,5 секунды
+    /// превращается в «✓ Saved» с приглушённой заливкой — реакция на каждое нажатие
+    private var saveToolbarButton: some View {
+        Button {
+            // Защита от повторных нажатий, пока показывается «Saved»
+            guard savedNote == nil else { return }
+            saveSettings()
+        } label: {
+            // Одна кнопка с меняющимся содержимым, без анимации перехода —
+            // иначе Save и Saved на мгновение видны одновременно
+            HStack(spacing: 4) {
+                if savedNote != nil {
+                    Image(systemName: "checkmark")
+                }
+                Text(savedNote != nil ? "Saved" : "Save")
+            }
+            .fontWeight(.semibold)
+            // Шире по горизонтали — прямоугольник, а не овал
+            .padding(.horizontal, 20)
+        }
+        // Зелёная заливка с белым текстом; «Saved» — приглушённый тёмно-зелёный;
+        // при блокировке — системно-серая
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.roundedRectangle(radius: 6))
+        .tint(savedNote != nil ? savedTint : .green)
+        .disabled(isDiscovering)
+    }
+
     // MARK: - Загрузка текущих настроек
     
     private func loadSettings() {
@@ -242,18 +271,14 @@ struct SettingsView: View {
 
     // MARK: - Живое подтверждение сохранения
 
-    /// Показывает «Settings saved» под кнопкой и прячет через пару секунд.
-    /// Срабатывает на каждое нажатие — в отличие от статичной строки или алерта
+    /// Переключает кнопку в состояние «✓ Saved» и возвращает через пару секунд.
+    /// Смена мгновенная, без анимации — иначе оба состояния видны одновременно
     private func showSavedNote() {
-        withAnimation {
-            savedNote = "Settings saved"
-        }
+        savedNote = "Settings saved"
         Task {
             try? await Task.sleep(for: .seconds(2.5))
             await MainActor.run {
-                withAnimation {
-                    savedNote = nil
-                }
+                savedNote = nil
             }
         }
     }
