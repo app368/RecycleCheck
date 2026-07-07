@@ -537,7 +537,14 @@ struct CaptureView: View {
                     print("      \(confirmation.exceptions)")
                     print("\n   🛠  Preparation:")
                     print("      \(confirmation.preparation)")
-                    
+
+                    // Результат проверки вердикта Claude
+                    if let corrected = confirmation.correctedStatus {
+                        print("\n   🔁 Verdict CORRECTED: \(testVerdict.rawValue) → \(corrected.rawValue)")
+                    } else {
+                        print("\n   ✅ Verdict confirmed: \(testVerdict.rawValue)")
+                    }
+
                     print("\n🟡 ConfirmationService test finished\n")
                 } catch {
                     print("\n🔴 ConfirmationService test failed: \(error.localizedDescription)\n")

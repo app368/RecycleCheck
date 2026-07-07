@@ -22,6 +22,25 @@ struct ResultView: View {
     /// Состояние догрузки подтверждения вердикта (СП4.1)
     @State private var confirmationState: ConfirmationState = .loading
 
+    /// Исправленный вердикт — заполняется, если Claude нашёл противоречие
+    /// между вердиктом СП3 и содержимым упоминаний (СП4.1)
+    @State private var correctedStatus: RecycleStatus?
+
+    /// Текущий отображаемый статус: исправленный, если была коррекция
+    private var currentStatus: RecycleStatus {
+        correctedStatus ?? result.status
+    }
+
+    /// Идёт ли проверка вердикта. Пока она не завершена, вердикт скрыт:
+    /// пользователь видит «Checking website…» и не уходит с предварительным
+    /// ответом, который ещё может измениться (СП4.1, коррекция вердикта).
+    /// Для notFound проверки нет; готовое confirmation показывается сразу.
+    private var isChecking: Bool {
+        result.status != .notFound
+            && result.confirmation == nil
+            && confirmationState == .loading
+    }
+
     /// Флаг показа страницы источника внутри приложения
     @State private var showSourcePage = false
 
@@ -46,9 +65,11 @@ struct ResultView: View {
                     .font(.title2)
                     .fontWeight(.semibold)
                     .multilineTextAlignment(.center)
+                    // Долгое нажатие — системное меню: Copy / Translate / Share
+                    .textSelection(.enabled)
                 
                 // MARK: - Статус пригодности
-                
+
                 statusBadge
                 
                 // MARK: - Фото предмета
@@ -98,29 +119,37 @@ struct ResultView: View {
     }
     
     // MARK: - Иконка статуса (большая, по центру)
-    
+    // Пока идёт проверка — индикатор ожидания вместо иконки вердикта
+
     private var statusIcon: some View {
         ZStack {
             Circle()
-                .fill(statusColor.opacity(0.15))
+                .fill((isChecking ? Color.gray : statusColor).opacity(0.15))
                 .frame(width: 100, height: 100)
-            
-            Image(systemName: statusSystemImage)
-                .font(.system(size: 44))
-                .foregroundStyle(statusColor)
+
+            if isChecking {
+                ProgressView()
+                    .controlSize(.large)
+                    .tint(.gray)
+            } else {
+                Image(systemName: statusSystemImage)
+                    .font(.system(size: 44))
+                    .foregroundStyle(statusColor)
+            }
         }
         .padding(.top, 8)
     }
-    
+
     // MARK: - Бейдж со статусом
-    
+    // Пока идёт проверка — нейтральное «Checking website…» вместо вердикта
+
     private var statusBadge: some View {
-        Text(result.status.rawValue)
+        Text(isChecking ? "Checking website…" : currentStatus.rawValue)
             .font(.headline)
-            .foregroundStyle(statusColor)
+            .foregroundStyle(isChecking ? Color.secondary : statusColor)
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
-            .background(statusColor.opacity(0.1))
+            .background((isChecking ? Color.gray : statusColor).opacity(0.1))
             .clipShape(Capsule())
     }
     
@@ -143,33 +172,27 @@ struct ResultView: View {
     }
     
     // MARK: - Секция подтверждения вердикта (СП4.1)
-    // Для notFound секции нет: подтверждать нечего
+    // Для notFound секции нет: подтверждать нечего.
+    // Во время проверки секция скрыта — состояние ожидания показывают
+    // иконка и бейдж статуса; секция появляется вместе с вердиктом
 
     @ViewBuilder
     private var confirmationSection: some View {
-        if result.status != .notFound {
+        if result.status != .notFound, confirmationState != .loading {
             ConfirmationSectionView(state: confirmationState)
         }
     }
 
-    // MARK: - Сырой evidence — свёрнут, как дополнительная информация
+    // MARK: - Сырой evidence — заметная кнопка с разворачиванием
 
     @ViewBuilder
     private var rawEvidenceSection: some View {
         if let evidence = result.evidence, !evidence.isEmpty {
-            DisclosureGroup("Show raw evidence") {
-                Text(evidence)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 4)
-            }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
+            RawEvidenceDisclosure(evidence: evidence)
         }
     }
 
-    // MARK: - Кликабельная ссылка на источник
+    // MARK: - Кнопка «Source» — ссылка спрятана под неё
 
     /// URL страницы источника (если строка корректна)
     private var sourcePageURL: URL? {
@@ -179,21 +202,19 @@ struct ResultView: View {
 
     @ViewBuilder
     private var sourceLink: some View {
-        if let sourceURL = result.sourceURL {
+        if sourcePageURL != nil {
             Button {
                 showSourcePage = true
             } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "safari")
-                        .font(.caption)
-                    Text("Source: \(sourceURL)")
-                        .font(.caption)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                .foregroundStyle(.blue)
+                Label("Source", systemImage: "safari")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(.blue.opacity(0.1))
+                    .foregroundStyle(.blue)
+                    .clipShape(Capsule())
             }
-            .disabled(sourcePageURL == nil)
         }
     }
 
@@ -205,6 +226,7 @@ struct ResultView: View {
     private func loadConfirmationIfNeeded() async {
         // Подтверждение пришло готовым — показываем сразу
         if let existing = result.confirmation {
+            applyCorrectionIfNeeded(from: existing)
             confirmationState = .loaded(existing)
             return
         }
@@ -233,19 +255,37 @@ struct ResultView: View {
                     verdict: result.status
                 )
 
-            confirmationState = .loaded(confirmation)
+            // Вердикт и секция появляются одним обновлением экрана
+            withAnimation {
+                applyCorrectionIfNeeded(from: confirmation)
+                confirmationState = .loaded(confirmation)
+            }
             saveConfirmationToHistory(confirmation)
         } catch {
             // Пользователь ушёл с экрана — задача отменена, ошибку не показываем
             guard !Task.isCancelled else { return }
-            confirmationState = .unavailable
+            // Проверка не удалась — показываем вердикт СП3 как есть
+            withAnimation {
+                confirmationState = .unavailable
+            }
         }
     }
 
-    /// Дозапись полученного confirmation в запись истории
+    /// Применяет коррекцию вердикта, если Claude нашёл противоречие (СП4.1).
+    /// Пользователь предварительный вердикт не видит — на экране
+    /// сразу появляется итоговый
+    private func applyCorrectionIfNeeded(from confirmation: Confirmation) {
+        guard let corrected = confirmation.correctedStatus,
+              corrected != result.status else { return }
+        correctedStatus = corrected
+    }
+
+    /// Дозапись полученного confirmation в запись истории.
+    /// Статус сохраняется с учётом коррекции — история хранит итоговый вердикт
     private func saveConfirmationToHistory(_ confirmation: Confirmation) {
         guard let entryID = historyEntryID else { return }
         var updatedResult = result
+        updatedResult.status = currentStatus
         updatedResult.confirmation = confirmation
         storage.updateHistoryResult(entryID: entryID, result: updatedResult)
     }
@@ -289,9 +329,9 @@ struct ResultView: View {
     
     // MARK: - Вспомогательные свойства для стилизации по статусу
     
-    /// Цвет, соответствующий статусу
+    /// Цвет, соответствующий текущему статусу (с учётом коррекции)
     private var statusColor: Color {
-        switch result.status {
+        switch currentStatus {
         case .recyclable:
             return .green
         case .notRecyclable:
@@ -300,10 +340,10 @@ struct ResultView: View {
             return .orange
         }
     }
-    
-    /// SF Symbol, соответствующий статусу
+
+    /// SF Symbol, соответствующий текущему статусу (с учётом коррекции)
     private var statusSystemImage: String {
-        switch result.status {
+        switch currentStatus {
         case .recyclable:
             return "checkmark.circle.fill"
         case .notRecyclable:

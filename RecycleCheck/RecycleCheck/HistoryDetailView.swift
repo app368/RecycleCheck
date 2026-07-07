@@ -117,17 +117,9 @@ struct HistoryDetailView: View {
             }
         }
 
-        // Сырой evidence — свёрнут, для любой записи, где он есть
+        // Сырой evidence — заметная кнопка с разворачиванием, где он есть
         if let evidence = entry.result?.evidence, !evidence.isEmpty {
-            DisclosureGroup("Show raw evidence") {
-                Text(evidence)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 4)
-            }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
+            RawEvidenceDisclosure(evidence: evidence)
         }
     }
     
@@ -207,6 +199,8 @@ struct DetailCard: View {
             // Содержимое
             Text(content)
                 .font(.body)
+                // Долгое нажатие — системное меню: Copy / Translate / Share
+                .textSelection(.enabled)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()

@@ -173,14 +173,19 @@ struct RecycleItem: Identifiable, Codable {
 struct Confirmation: Codable, Equatable {
     /// Дословная цитата с сайта, подтверждающая вердикт
     let citation: String
-    
+
     /// Исключения для пригодных предметов
     /// (или "Not applicable" / "No exceptions mentioned")
     let exceptions: String
-    
+
     /// Инструкции по подготовке предмета к переработке
     /// (или "Not applicable" / "No preparation instructions found")
     let preparation: String
+
+    /// Коррекция вердикта: заполняется, когда содержимое упоминаний
+    /// противоречит вердикту СП3 (например, предмет попал в список исключений).
+    /// nil — вердикт подтверждён (или запись сохранена до появления коррекции).
+    var correctedStatus: RecycleStatus? = nil
 }
 
 // MARK: - Результат поиска (СП3, СП4)
@@ -194,8 +199,9 @@ enum RecycleStatus: String, Codable {
 
 /// Результат поиска предмета на сайте
 struct SearchResult: Codable {
-    /// Статус пригодности
-    let status: RecycleStatus
+    /// Статус пригодности. Изменяемый: при противоречии с содержимым сайта
+    /// вердикт исправляется по результату анализа Claude (СП4.1)
+    var status: RecycleStatus
     
     /// Текст-доказательство с сайта
     var evidence: String?
