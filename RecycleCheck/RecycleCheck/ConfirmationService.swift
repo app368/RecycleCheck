@@ -113,6 +113,9 @@ final class ConfirmationService {
         and provide a clear, structured confirmation for the user.
 
         ITEM: \(itemDescription)
+        MATERIAL: \(recognition.material)
+        FORM / ITEM TYPE: \(recognition.itemType)
+        USED FOR: \(recognition.contentsUse.joined(separator: ", "))
         PRELIMINARY VERDICT (from automated text search, may be inaccurate): \(verdictText)
 
         Below are paragraphs from the recycling website where this item is mentioned. \
@@ -121,12 +124,27 @@ final class ConfirmationService {
 
         FIELD RULES:
 
-        1. "correct_verdict" — the verdict that the mentions actually support for this \
-        exact item. Use exactly "Recyclable" or "Not recyclable", no other values. \
-        Pay special attention to exclusion lists (e.g. "NO drinking glasses, dishware...") \
-        that apply to this exact item type — they override general material rules. \
-        If the mentions support the preliminary verdict, return it unchanged. \
-        If they clearly contradict it, return the corrected verdict. \
+        1. "correct_verdict" — decide which verdict the mentions actually support for \
+        this exact item. Use exactly "Recyclable" or "Not recyclable", no other values. \
+        Follow this decision procedure IN ORDER:
+        a) If an exclusion list (e.g. "NO drinking glasses, dishware...") covers this \
+        item's form — the verdict is "Not recyclable".
+        b) If the mentions enumerate the SPECIFIC forms accepted for this material \
+        (e.g. "glass bottles and jars"), treat that list as EXHAUSTIVE. Compare the \
+        item's FORM against the list: if the form is not one of the listed forms, \
+        the verdict is "Not recyclable". Example: for MATERIAL glass and FORM container, \
+        the rule "put glass bottles and jars in your glass-only bin" does NOT cover it — \
+        a food-storage container is neither a bottle nor a jar — so the verdict is \
+        "Not recyclable".
+        c) Consider each mention's source URL path: pages like "not-recyclable", \
+        "garbage", "landfill" list NOT accepted items; pages like "recycling" list \
+        accepted items.
+        d) The verdict is "Recyclable" only if the item's form is explicitly accepted \
+        by the mentions.
+        CONSISTENCY CHECK before answering: if your "exceptions" text would say that \
+        this item's form is excluded or not confirmed as accepted, then your \
+        correct_verdict MUST be "Not recyclable" — never keep a positive verdict \
+        that your own exceptions contradict.
         This field is REQUIRED.
 
         2. "citation" — a DIRECT, VERBATIM quote from the mentions that best confirms \
