@@ -10,7 +10,9 @@ struct SettingsView: View {
     
     @State private var websiteURL: String = ""
     @State private var requestEmail: String = ""
-    @State private var showSavedAlert = false
+
+    /// Немодальное подтверждение сохранения (вместо алерта «Saved»)
+    @State private var savedNote: String?
     
     /// Состояние обнаружения целевых страниц
     @State private var isDiscovering = false
@@ -85,9 +87,9 @@ struct SettingsView: View {
                 Text("Email address for submitting items not found on the website.")
             }
             
-            // MARK: - Статус обнаружения страниц
-            
-            if isDiscovering || discoveryResult != nil {
+            // MARK: - Секция обнаружения страниц: статус кэша + Refresh
+
+            if !websiteURL.isEmpty {
                 Section {
                     if isDiscovering {
                         // Индикатор прогресса обнаружения
@@ -97,7 +99,7 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     } else if let result = discoveryResult {
-                        // Результат обнаружения
+                        // Состояние кэша: количество страниц и дата сборки
                         HStack(spacing: 8) {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
@@ -105,25 +107,66 @@ struct SettingsView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
+                    } else {
+                        Text("No pages discovered yet")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
+
+                    // Принудительное обновление кэша без смены URL
+                    Button {
+                        startDiscovery(for: AppConfig.recyclingWebsiteURL)
+                    } label: {
+                        Label("Refresh source pages", systemImage: "arrow.clockwise")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(.blue.opacity(0.1))
+                            .foregroundStyle(.blue)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                    .disabled(isDiscovering)
                 } header: {
                     Text("Page discovery")
+                } footer: {
+                    Text("Re-discovers the website pages used for item search — refresh if the website content has changed.")
                 }
             }
-            
+
             // MARK: - Кнопка сохранения
+            // Полноценная зелёная кнопка в стиле основных кнопок приложения
             Section {
                 Button {
                     saveSettings()
                 } label: {
-                    HStack {
-                        Spacer()
-                        Text("Save")
-                            .fontWeight(.semibold)
-                        Spacer()
-                    }
+                    Text("Save")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(isDiscovering ? .gray : .green)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
+                .buttonStyle(.plain)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
                 .disabled(isDiscovering)
+            } footer: {
+                // Живое подтверждение: появляется на каждое нажатие
+                // и само исчезает через пару секунд
+                if let savedNote {
+                    Label(savedNote, systemImage: "checkmark.circle.fill")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.green)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 4)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
         }
         .navigationTitle("Settings")
@@ -140,11 +183,6 @@ struct SettingsView: View {
         .onAppear {
             loadSettings()
         }
-        .alert("Saved", isPresented: $showSavedAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Settings have been saved.")
-        }
         .alert("Page discovery failed", isPresented: $showDiscoveryError) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -157,11 +195,24 @@ struct SettingsView: View {
     private func loadSettings() {
         websiteURL = AppConfig.recyclingWebsiteURL
         requestEmail = AppConfig.requestEmail
-        
-        // Показываем кэшированный результат обнаружения, если есть
-        if let cached = storage.loadTargetURLs(forBaseURL: websiteURL) {
-            discoveryResult = "\(cached.count) pages found"
+        updateDiscoveryStatus()
+    }
+
+    // MARK: - Статус кэша целевых страниц
+
+    /// Собирает строку состояния кэша: количество страниц + дата сборки.
+    /// «6 pages found · updated Jul 7, 2026»
+    private func updateDiscoveryStatus() {
+        guard let cached = storage.loadTargetURLs(forBaseURL: AppConfig.recyclingWebsiteURL),
+              !cached.isEmpty else {
+            discoveryResult = nil
+            return
         }
+        var status = "\(cached.count) pages found"
+        if let date = storage.targetURLsCacheDate() {
+            status += " · updated \(date.formatted(date: .abbreviated, time: .omitted))"
+        }
+        discoveryResult = status
     }
     
     // MARK: - Сохранение настроек
@@ -182,9 +233,28 @@ struct SettingsView: View {
         // Если URL изменился — запускаем обнаружение целевых страниц
         if newURL != previousURL && !newURL.isEmpty {
             storage.clearTargetURLsCache()
+            discoveryResult = nil
             startDiscovery(for: newURL)
         } else {
-            showSavedAlert = true
+            showSavedNote()
+        }
+    }
+
+    // MARK: - Живое подтверждение сохранения
+
+    /// Показывает «Settings saved» под кнопкой и прячет через пару секунд.
+    /// Срабатывает на каждое нажатие — в отличие от статичной строки или алерта
+    private func showSavedNote() {
+        withAnimation {
+            savedNote = "Settings saved"
+        }
+        Task {
+            try? await Task.sleep(for: .seconds(2.5))
+            await MainActor.run {
+                withAnimation {
+                    savedNote = nil
+                }
+            }
         }
     }
     
@@ -204,8 +274,8 @@ struct SettingsView: View {
                 
                 await MainActor.run {
                     isDiscovering = false
-                    discoveryResult = "\(targetURLs.count) pages found"
-                    showSavedAlert = true
+                    updateDiscoveryStatus()
+                    showSavedNote()
                 }
             } catch {
                 await MainActor.run {
