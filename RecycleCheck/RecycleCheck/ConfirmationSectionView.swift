@@ -28,10 +28,14 @@ struct ConfirmationSectionView: View {
 
             // MARK: - Заголовок секции
 
-            Label("Confirmation", systemImage: "checkmark.seal")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
+            Label {
+                Text("Confirmation")
+            } icon: {
+                Image(systemName: "checkmark.seal.fill")
+                    .foregroundStyle(.green)
+            }
+            .font(.title3)
+            .fontWeight(.semibold)
 
             // MARK: - Содержимое по состоянию
 
@@ -82,6 +86,7 @@ struct ConfirmationSectionView: View {
         subsection(
             title: "Citation from website",
             icon: "text.quote",
+            color: .blue,
             text: confirmation.citation
         )
 
@@ -91,7 +96,8 @@ struct ConfirmationSectionView: View {
         if let exceptions = displayableValue(confirmation.exceptions) {
             subsection(
                 title: "Exceptions",
-                icon: "exclamationmark.triangle",
+                icon: "exclamationmark.triangle.fill",
+                color: .orange,
                 text: exceptions
             )
         }
@@ -99,19 +105,25 @@ struct ConfirmationSectionView: View {
         if let preparation = displayableValue(confirmation.preparation) {
             subsection(
                 title: "How to prepare",
-                icon: "wrench.and.screwdriver",
+                icon: "wrench.and.screwdriver.fill",
+                color: .teal,
                 text: preparation
             )
         }
     }
 
-    /// Один подраздел: заголовок с иконкой + текст на подложке
-    private func subsection(title: String, icon: String, text: String) -> some View {
+    /// Один подраздел: заголовок с цветной иконкой + текст на подложке
+    private func subsection(title: String, icon: String, color: Color, text: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label(title, systemImage: icon)
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
+            Label {
+                Text(title)
+                    .foregroundStyle(.primary)
+            } icon: {
+                Image(systemName: icon)
+                    .foregroundStyle(color)
+            }
+            .font(.subheadline)
+            .fontWeight(.semibold)
 
             Text(text)
                 .font(.body)
@@ -133,7 +145,47 @@ struct ConfirmationSectionView: View {
     }
 }
 
+// MARK: - Кнопка «Show raw evidence» (сырой текст с сайта)
+// Оформлена как заметная кнопка-карточка с разворачиванием.
+// Используется в ResultView и HistoryDetailView.
+
+struct RawEvidenceDisclosure: View {
+
+    /// Сырой текст-доказательство с сайта
+    let evidence: String
+
+    /// Развёрнуто ли содержимое
+    @State private var isExpanded = false
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            Text(evidence)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 8)
+        } label: {
+            Label("Show raw evidence", systemImage: "doc.text.magnifyingglass")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(.blue)
+        }
+        .tint(.blue)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.blue.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
 // MARK: - Превью
+
+#Preview("Raw evidence button") {
+    RawEvidenceDisclosure(
+        evidence: "Plastic bottles (PET #1) are widely accepted in curbside recycling programs. Rinse and remove the cap before placing in the recycling bin."
+    )
+    .padding()
+}
 
 #Preview("Loaded — recyclable") {
     ScrollView {

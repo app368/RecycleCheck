@@ -181,24 +181,16 @@ struct ResultView: View {
         }
     }
 
-    // MARK: - Сырой evidence — свёрнут, как дополнительная информация
+    // MARK: - Сырой evidence — заметная кнопка с разворачиванием
 
     @ViewBuilder
     private var rawEvidenceSection: some View {
         if let evidence = result.evidence, !evidence.isEmpty {
-            DisclosureGroup("Show raw evidence") {
-                Text(evidence)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 4)
-            }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
+            RawEvidenceDisclosure(evidence: evidence)
         }
     }
 
-    // MARK: - Кликабельная ссылка на источник
+    // MARK: - Кнопка «Source» — ссылка спрятана под неё
 
     /// URL страницы источника (если строка корректна)
     private var sourcePageURL: URL? {
@@ -208,21 +200,19 @@ struct ResultView: View {
 
     @ViewBuilder
     private var sourceLink: some View {
-        if let sourceURL = result.sourceURL {
+        if sourcePageURL != nil {
             Button {
                 showSourcePage = true
             } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "safari")
-                        .font(.caption)
-                    Text("Source: \(sourceURL)")
-                        .font(.caption)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                .foregroundStyle(.blue)
+                Label("Source", systemImage: "safari")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(.blue.opacity(0.1))
+                    .foregroundStyle(.blue)
+                    .clipShape(Capsule())
             }
-            .disabled(sourcePageURL == nil)
         }
     }
 
