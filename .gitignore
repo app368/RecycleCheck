@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# Xcode — пользовательские настройки и артефакты сборки
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+
+# Секреты — реальный API-ключ живёт только локально (шаблон: Secrets.swift.example)
+RecycleCheck/RecycleCheck/Secrets.swift
+
+# Старые копии файлов — не версионируются
+Old Copy/
+03 Context Files/Old files - GIT Ignore/
