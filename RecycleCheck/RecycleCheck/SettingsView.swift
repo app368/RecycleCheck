@@ -82,9 +82,9 @@ struct SettingsView: View {
                     }
                 }
             } header: {
-                Text("Request email")
+                Text("Email for messages to the source website")
             } footer: {
-                Text("Email address for submitting items not found on the website.")
+                Text("Here you can specify the email address for submitting items not found on the website.")
             }
             
             // MARK: - Секция обнаружения страниц: статус кэша + Refresh
