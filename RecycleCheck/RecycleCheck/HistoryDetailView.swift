@@ -6,9 +6,12 @@ import SwiftUI
 // статус, доказательство с сайта, дата, отправка email.
 
 struct HistoryDetailView: View {
-    
+
     /// Запись из истории проверок
     let entry: CheckHistoryEntry
+
+    /// Флаг показа страницы источника внутри приложения
+    @State private var showSourcePage = false
     
     var body: some View {
         ScrollView {
@@ -33,6 +36,15 @@ struct HistoryDetailView: View {
         }
         .navigationTitle("Check details")
         .navigationBarTitleDisplayMode(.inline)
+
+        // MARK: - Страница источника внутри приложения
+
+        .sheet(isPresented: $showSourcePage) {
+            if let url = sourcePageURL {
+                SafariView(url: url)
+                    .ignoresSafeArea()
+            }
+        }
     }
     
     // MARK: - Секция фотографии
@@ -135,9 +147,23 @@ struct HistoryDetailView: View {
                 )
             )
             
-            // Источник (URL страницы)
-            if let sourceURL = entry.result?.sourceURL, !sourceURL.isEmpty {
-                InfoRow(label: "Source", value: sourceURL)
+            // Источник: вместо полного URL — кнопка с коротким именем сайта,
+            // тап открывает страницу внутри приложения
+            if sourcePageURL != nil {
+                HStack {
+                    Text("Source")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Button {
+                        showSourcePage = true
+                    } label: {
+                        Label(sourceSiteName, systemImage: "safari")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.blue)
+                    }
+                }
             }
             
             // Статус отправки email (СП5)
@@ -151,6 +177,20 @@ struct HistoryDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
     
+    // MARK: - Источник (СП7.2)
+
+    /// URL страницы источника (если строка корректна)
+    private var sourcePageURL: URL? {
+        guard let urlString = entry.result?.sourceURL, !urlString.isEmpty else { return nil }
+        return URL(string: urlString)
+    }
+
+    /// Короткое имя сайта для кнопки: хост без технического «www.»
+    private var sourceSiteName: String {
+        guard let host = sourcePageURL?.host else { return "Website" }
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+    }
+
     // MARK: - Вспомогательные свойства статуса
     
     private var statusIcon: String {
@@ -220,7 +260,7 @@ struct InfoRow: View {
         HStack {
             Text(label)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .fontWeight(.semibold)
             Spacer()
             Text(value)
                 .font(.subheadline)
