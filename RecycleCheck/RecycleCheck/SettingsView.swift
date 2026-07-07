@@ -167,9 +167,14 @@ struct SettingsView: View {
     // MARK: - Сохранение настроек
     
     private func saveSettings() {
-        let newURL = websiteURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Нормализуем URL: пользователь может вставить грязную ссылку
+        // из браузера (utm-хвосты, «?», слэши) — храним каноничный вид
+        let newURL = URLNormalizer.normalize(websiteURL)
         let previousURL = AppConfig.recyclingWebsiteURL
-        
+
+        // Показываем в поле то, что реально сохранили
+        websiteURL = newURL
+
         UserDefaults.standard.set(newURL, forKey: "settings_website_url")
         UserDefaults.standard.set(requestEmail, forKey: "settings_request_email")
         focusedField = nil
