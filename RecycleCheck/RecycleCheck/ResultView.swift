@@ -31,6 +31,16 @@ struct ResultView: View {
         correctedStatus ?? result.status
     }
 
+    /// Идёт ли проверка вердикта. Пока она не завершена, вердикт скрыт:
+    /// пользователь видит «Checking website…» и не уходит с предварительным
+    /// ответом, который ещё может измениться (СП4.1, коррекция вердикта).
+    /// Для notFound проверки нет; готовое confirmation показывается сразу.
+    private var isChecking: Bool {
+        result.status != .notFound
+            && result.confirmation == nil
+            && confirmationState == .loading
+    }
+
     /// Флаг показа страницы источника внутри приложения
     @State private var showSourcePage = false
 
@@ -55,18 +65,12 @@ struct ResultView: View {
                     .font(.title2)
                     .fontWeight(.semibold)
                     .multilineTextAlignment(.center)
+                    // Долгое нажатие — системное меню: Copy / Translate / Share
+                    .textSelection(.enabled)
                 
                 // MARK: - Статус пригодности
 
                 statusBadge
-
-                // MARK: - Плашка коррекции вердикта (СП4.1)
-                // Поясняет смену бейджа после детальной проверки,
-                // чтобы она не выглядела сбоем для пользователя
-
-                if correctedStatus != nil {
-                    verdictUpdatedNote
-                }
                 
                 // MARK: - Фото предмета
                 
@@ -115,41 +119,37 @@ struct ResultView: View {
     }
     
     // MARK: - Иконка статуса (большая, по центру)
-    
+    // Пока идёт проверка — индикатор ожидания вместо иконки вердикта
+
     private var statusIcon: some View {
         ZStack {
             Circle()
-                .fill(statusColor.opacity(0.15))
+                .fill((isChecking ? Color.gray : statusColor).opacity(0.15))
                 .frame(width: 100, height: 100)
-            
-            Image(systemName: statusSystemImage)
-                .font(.system(size: 44))
-                .foregroundStyle(statusColor)
+
+            if isChecking {
+                ProgressView()
+                    .controlSize(.large)
+                    .tint(.gray)
+            } else {
+                Image(systemName: statusSystemImage)
+                    .font(.system(size: 44))
+                    .foregroundStyle(statusColor)
+            }
         }
         .padding(.top, 8)
     }
-    
+
     // MARK: - Бейдж со статусом
+    // Пока идёт проверка — нейтральное «Checking website…» вместо вердикта
 
     private var statusBadge: some View {
-        Text(currentStatus.rawValue)
+        Text(isChecking ? "Checking website…" : currentStatus.rawValue)
             .font(.headline)
-            .foregroundStyle(statusColor)
+            .foregroundStyle(isChecking ? Color.secondary : statusColor)
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
-            .background(statusColor.opacity(0.1))
-            .clipShape(Capsule())
-    }
-
-    // MARK: - Плашка «вердикт обновлён» (СП4.1)
-
-    private var verdictUpdatedNote: some View {
-        Label("Verdict updated after detailed check", systemImage: "arrow.triangle.2.circlepath")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(.gray.opacity(0.1))
+            .background((isChecking ? Color.gray : statusColor).opacity(0.1))
             .clipShape(Capsule())
     }
     
@@ -172,11 +172,13 @@ struct ResultView: View {
     }
     
     // MARK: - Секция подтверждения вердикта (СП4.1)
-    // Для notFound секции нет: подтверждать нечего
+    // Для notFound секции нет: подтверждать нечего.
+    // Во время проверки секция скрыта — состояние ожидания показывают
+    // иконка и бейдж статуса; секция появляется вместе с вердиктом
 
     @ViewBuilder
     private var confirmationSection: some View {
-        if result.status != .notFound {
+        if result.status != .notFound, confirmationState != .loading {
             ConfirmationSectionView(state: confirmationState)
         }
     }
@@ -253,24 +255,29 @@ struct ResultView: View {
                     verdict: result.status
                 )
 
-            applyCorrectionIfNeeded(from: confirmation)
-            confirmationState = .loaded(confirmation)
+            // Вердикт и секция появляются одним обновлением экрана
+            withAnimation {
+                applyCorrectionIfNeeded(from: confirmation)
+                confirmationState = .loaded(confirmation)
+            }
             saveConfirmationToHistory(confirmation)
         } catch {
             // Пользователь ушёл с экрана — задача отменена, ошибку не показываем
             guard !Task.isCancelled else { return }
-            confirmationState = .unavailable
+            // Проверка не удалась — показываем вердикт СП3 как есть
+            withAnimation {
+                confirmationState = .unavailable
+            }
         }
     }
 
     /// Применяет коррекцию вердикта, если Claude нашёл противоречие (СП4.1).
-    /// Бейдж меняется с анимацией, под ним появляется плашка-пояснение
+    /// Пользователь предварительный вердикт не видит — на экране
+    /// сразу появляется итоговый
     private func applyCorrectionIfNeeded(from confirmation: Confirmation) {
         guard let corrected = confirmation.correctedStatus,
               corrected != result.status else { return }
-        withAnimation {
-            correctedStatus = corrected
-        }
+        correctedStatus = corrected
     }
 
     /// Дозапись полученного confirmation в запись истории.

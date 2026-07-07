@@ -199,6 +199,8 @@ struct DetailCard: View {
             // Содержимое
             Text(content)
                 .font(.body)
+                // Долгое нажатие — системное меню: Copy / Translate / Share
+                .textSelection(.enabled)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()

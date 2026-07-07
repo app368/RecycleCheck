@@ -1,4 +1,5 @@
 import SwiftUI
+import Translation
 
 // MARK: - Секция подтверждения вердикта (СП4.1, шаг 3)
 // Переиспользуемый компонент для ResultView и HistoryDetailView.
@@ -112,21 +113,33 @@ struct ConfirmationSectionView: View {
         }
     }
 
-    /// Один подраздел: заголовок с цветной иконкой + текст на подложке
+    /// Один подраздел: заголовок с цветной иконкой, кнопка перевода
+    /// и текст на подложке
     private func subsection(title: String, icon: String, color: Color, text: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label {
-                Text(title)
-                    .foregroundStyle(.primary)
-            } icon: {
-                Image(systemName: icon)
-                    .foregroundStyle(color)
+            HStack {
+                Label {
+                    Text(title)
+                        .foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: icon)
+                        .foregroundStyle(color)
+                }
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+                Spacer()
+
+                // Кнопка перевода — системное окно перевода абзаца
+                if #available(iOS 17.4, *) {
+                    TranslateButton(text: text)
+                }
             }
-            .font(.subheadline)
-            .fontWeight(.semibold)
 
             Text(text)
                 .font(.body)
+                // Долгое нажатие — системное меню: Copy / Translate / Share
+                .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding()
@@ -159,11 +172,23 @@ struct RawEvidenceDisclosure: View {
 
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
-            Text(evidence)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 8)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(evidence)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    // Долгое нажатие — системное меню: Copy / Share
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Кнопка перевода — системное окно перевода абзаца
+                if #available(iOS 17.4, *) {
+                    HStack {
+                        Spacer()
+                        TranslateButton(text: evidence)
+                    }
+                }
+            }
+            .padding(.top, 8)
         } label: {
             Label("Show raw evidence", systemImage: "doc.text.magnifyingglass")
                 .font(.subheadline)
@@ -175,6 +200,31 @@ struct RawEvidenceDisclosure: View {
         .padding(.vertical, 12)
         .background(.blue.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+// MARK: - Кнопка перевода текста
+// Открывает системное окно перевода (Translation framework, iOS 17.4+).
+// Тот же UI, что открывает опция Translate из меню выделения текста.
+
+@available(iOS 17.4, *)
+struct TranslateButton: View {
+
+    /// Текст, который будет переведён
+    let text: String
+
+    /// Флаг показа системного окна перевода
+    @State private var isPresented = false
+
+    var body: some View {
+        Button {
+            isPresented = true
+        } label: {
+            Image(systemName: "translate")
+                .font(.subheadline)
+                .foregroundStyle(.blue)
+        }
+        .translationPresentation(isPresented: $isPresented, text: text)
     }
 }
 
