@@ -49,9 +49,14 @@ final class LinkDiscoveryService {
     
     /// Основной метод: загружает сайт, собирает ссылки, фильтрует, возвращает целевые URL.
     /// - Parameter baseURLString: URL главной страницы сайта
-    /// - Returns: массив URL целевых страниц для поиска
-    func discoverTargetPages(baseURLString: String) async throws -> [String] {
-        
+    /// - Returns: массив URL целевых страниц для поиска (нормализованных, без дублей)
+    func discoverTargetPages(baseURLString rawBaseURLString: String) async throws -> [String] {
+
+        // Приводим базовый URL к каноничному виду — иначе грязный URL
+        // из Settings (хвостовой «?», utm-параметры) попадёт в список
+        // целевых страниц и продублирует страницу, найденную по ссылкам
+        let baseURLString = URLNormalizer.normalize(rawBaseURLString)
+
         // Проверяем базовый URL
         guard let baseURL = URL(string: baseURLString),
               let host = baseURL.host else {
@@ -83,12 +88,15 @@ final class LinkDiscoveryService {
         
         let targetLinks = try await aiFilter(links: filteredLinks, baseURLString: baseURLString)
         
-        // Всегда включаем главную страницу в начало списка
-        var result = [baseURLString]
-        for link in targetLinks where link != baseURLString {
+        // Всегда включаем главную страницу в начало списка.
+        // Дедупликация с сохранением порядка: все URL уже нормализованы,
+        // поэтому копии одной страницы схлопываются
+        var result: [String] = []
+        var seen = Set<String>()
+        for link in [baseURLString] + targetLinks where seen.insert(link).inserted {
             result.append(link)
         }
-        
+
         return result
     }
     
@@ -128,12 +136,10 @@ final class LinkDiscoveryService {
                 continue
             }
             
-            // Убираем query-параметры и фрагменты для дедупликации
-            var components = URLComponents(url: linkURL, resolvingAgainstBaseURL: false)
-            components?.query = nil
-            components?.fragment = nil
-            
-            if let cleanURL = components?.string {
+            // Приводим к каноничному виду (query, fragment, слэши, регистр) —
+            // единые правила с остальным кодом через URLNormalizer
+            let cleanURL = URLNormalizer.normalize(href)
+            if !cleanURL.isEmpty {
                 links.insert(cleanURL)
             }
         }
@@ -224,7 +230,11 @@ final class LinkDiscoveryService {
         """
         
         let requestBody: [String: Any] = [
-            "model": "claude-sonnet-4-20250514",
+            // claude-sonnet-4 отключён Anthropic 15.06.2026, заменён на sonnet-5
+            "model": "claude-sonnet-5",
+            // У sonnet-5 thinking включён по умолчанию — выключаем:
+            // парсер ждёт JSON в первом блоке ответа
+            "thinking": ["type": "disabled"],
             "max_tokens": 1000,
             "messages": [
                 ["role": "user", "content": prompt]

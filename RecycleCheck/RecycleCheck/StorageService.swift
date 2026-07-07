@@ -169,17 +169,20 @@ final class StorageService {
     
     // MARK: - Кэш целевых страниц сайта (СП3.3)
     
-    /// Сохранение списка целевых URL для указанного базового URL сайта
+    /// Сохранение списка целевых URL для указанного базового URL сайта.
+    /// Ключ кэша хранится в нормализованном виде
     func saveTargetURLs(_ urls: [String], forBaseURL baseURL: String) {
         defaults.set(urls, forKey: Keys.cachedTargetURLs)
-        defaults.set(baseURL, forKey: Keys.cachedBaseURL)
+        defaults.set(URLNormalizer.normalize(baseURL), forKey: Keys.cachedBaseURL)
     }
-    
+
     /// Загрузка списка целевых URL из кэша.
     /// Возвращает nil, если кэш пуст или baseURL изменился.
+    /// Ключи сравниваются в нормализованном виде — сырой ключ,
+    /// сохранённый до появления нормализации, тоже матчится
     func loadTargetURLs(forBaseURL baseURL: String) -> [String]? {
         guard let cachedBase = defaults.string(forKey: Keys.cachedBaseURL),
-              cachedBase == baseURL else {
+              URLNormalizer.normalize(cachedBase) == URLNormalizer.normalize(baseURL) else {
             return nil
         }
         return defaults.stringArray(forKey: Keys.cachedTargetURLs)
