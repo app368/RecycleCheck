@@ -39,6 +39,9 @@ struct CaptureView: View {
     
     /// Результат поиска на сайте (СП3) — передаётся в экран результатов (СП4)
     @State private var searchResult: SearchResult?
+
+    /// ID сохранённой записи истории — для дозаписи confirmation в ResultView (СП4.1)
+    @State private var historyEntryID: UUID?
     
     /// Фокус для управления клавиатурой
     @FocusState private var focusedField: RecognitionField?
@@ -139,7 +142,7 @@ struct CaptureView: View {
         
         .navigationDestination(isPresented: $showResults) {
             if let item = recycleItem, let result = searchResult {
-                ResultView(item: item, result: result)
+                ResultView(item: item, result: result, historyEntryID: historyEntryID)
             }
         }
         
@@ -634,6 +637,7 @@ struct CaptureView: View {
                 isSearching = false
                 recycleItem = item
                 searchResult = result
+                historyEntryID = historyEntry.id
                 showResults = true
             }
         }
@@ -649,6 +653,7 @@ struct CaptureView: View {
         editContentsUse = ""
         recycleItem = nil
         searchResult = nil
+        historyEntryID = nil
     }
 }
 

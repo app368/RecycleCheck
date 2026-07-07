@@ -64,6 +64,15 @@ final class StorageService {
         history.insert(entry, at: 0) // Новые записи — в начало
         saveHistory(history)
     }
+
+    /// Обновление результата записи истории по id (СП4.1)
+    /// Используется для дозаписи confirmation после его догрузки в ResultView
+    func updateHistoryResult(entryID: UUID, result: SearchResult) {
+        var history = loadHistory()
+        guard let index = history.firstIndex(where: { $0.id == entryID }) else { return }
+        history[index].result = result
+        saveHistory(history)
+    }
     
     // MARK: - Удаление записей из истории (СП7.3)
     

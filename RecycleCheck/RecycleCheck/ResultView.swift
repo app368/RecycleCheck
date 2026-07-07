@@ -14,7 +14,17 @@ struct ResultView: View {
     
     /// Результат поиска на сайте (из СП3)
     let result: SearchResult
-    
+
+    /// ID записи истории — для дозаписи confirmation после догрузки (СП4.1).
+    /// nil, если запись истории недоступна (превью) — тогда догрузка не сохраняется.
+    var historyEntryID: UUID? = nil
+
+    /// Состояние догрузки подтверждения вердикта (СП4.1)
+    @State private var confirmationState: ConfirmationState = .loading
+
+    /// Флаг показа страницы источника внутри приложения
+    @State private var showSourcePage = false
+
     /// Флаг перехода к отправке email (СП5)
     @State private var showEmailComposer = false
     
@@ -45,9 +55,15 @@ struct ResultView: View {
                 
                 itemPhoto
                 
-                // MARK: - Доказательство с сайта
-                
-                evidenceSection
+                // MARK: - Подтверждение вердикта (СП4.1)
+
+                confirmationSection
+
+                // MARK: - Сырой evidence (свёрнут) и ссылка на источник
+
+                rawEvidenceSection
+
+                sourceLink
                 
                 // MARK: - Кнопки действий
                 
@@ -62,6 +78,22 @@ struct ResultView: View {
         
         .navigationDestination(isPresented: $showEmailComposer) {
             SuggestItemView(item: item)
+        }
+
+        // MARK: - Догрузка подтверждения (СП4.1)
+        // Экран открывается сразу, подтверждение подгружается фоном
+
+        .task {
+            await loadConfirmationIfNeeded()
+        }
+
+        // MARK: - Страница источника внутри приложения
+
+        .sheet(isPresented: $showSourcePage) {
+            if let url = sourcePageURL {
+                SafariView(url: url)
+                    .ignoresSafeArea()
+            }
         }
     }
     
@@ -110,38 +142,112 @@ struct ResultView: View {
         }
     }
     
-    // MARK: - Секция доказательства с сайта
-    
+    // MARK: - Секция подтверждения вердикта (СП4.1)
+    // Для notFound секции нет: подтверждать нечего
+
     @ViewBuilder
-    private var evidenceSection: some View {
+    private var confirmationSection: some View {
+        if result.status != .notFound {
+            ConfirmationSectionView(state: confirmationState)
+        }
+    }
+
+    // MARK: - Сырой evidence — свёрнут, как дополнительная информация
+
+    @ViewBuilder
+    private var rawEvidenceSection: some View {
         if let evidence = result.evidence, !evidence.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Evidence from website", systemImage: "doc.text.magnifyingglass")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.secondary)
-                
+            DisclosureGroup("Show raw evidence") {
                 Text(evidence)
-                    .font(.body)
-                    .padding()
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.gray.opacity(0.08))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .padding(.top, 4)
             }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
         }
-        
-        // Ссылка на источник
+    }
+
+    // MARK: - Кликабельная ссылка на источник
+
+    /// URL страницы источника (если строка корректна)
+    private var sourcePageURL: URL? {
+        guard let urlString = result.sourceURL else { return nil }
+        return URL(string: urlString)
+    }
+
+    @ViewBuilder
+    private var sourceLink: some View {
         if let sourceURL = result.sourceURL {
-            HStack(spacing: 4) {
-                Image(systemName: "link")
-                    .font(.caption)
-                Text("Source: \(sourceURL)")
-                    .font(.caption)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+            Button {
+                showSourcePage = true
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "safari")
+                        .font(.caption)
+                    Text("Source: \(sourceURL)")
+                        .font(.caption)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .foregroundStyle(.blue)
             }
-            .foregroundStyle(.blue)
+            .disabled(sourcePageURL == nil)
         }
+    }
+
+    // MARK: - Догрузка подтверждения (СП4.1)
+
+    /// Запускает сбор упоминаний (Collector) и анализ (Service),
+    /// затем дозаписывает confirmation в сохранённую запись истории.
+    /// Если подтверждение уже есть или статус notFound — ничего не делает.
+    private func loadConfirmationIfNeeded() async {
+        // Подтверждение пришло готовым — показываем сразу
+        if let existing = result.confirmation {
+            confirmationState = .loaded(existing)
+            return
+        }
+
+        // Для notFound секция не отображается — загрузка не нужна
+        guard result.status != .notFound else { return }
+
+        // Проверяем исходные данные: распознавание и кэш целевых страниц
+        guard let recognition = item.recognition, recognition.isValid,
+              let targetURLs = storage.loadTargetURLs(forBaseURL: AppConfig.recyclingWebsiteURL),
+              !targetURLs.isEmpty else {
+            confirmationState = .unavailable
+            return
+        }
+
+        do {
+            // Шаг 1: локальный сбор упоминаний предмета на целевых страницах
+            let mentions = try await ConfirmationCollector.shared
+                .collectMentions(for: recognition, on: targetURLs)
+
+            // Шаг 2: анализ упоминаний в Claude AI
+            let confirmation = try await ConfirmationService.shared
+                .makeConfirmation(
+                    from: mentions,
+                    recognition: recognition,
+                    verdict: result.status
+                )
+
+            confirmationState = .loaded(confirmation)
+            saveConfirmationToHistory(confirmation)
+        } catch {
+            // Пользователь ушёл с экрана — задача отменена, ошибку не показываем
+            guard !Task.isCancelled else { return }
+            confirmationState = .unavailable
+        }
+    }
+
+    /// Дозапись полученного confirmation в запись истории
+    private func saveConfirmationToHistory(_ confirmation: Confirmation) {
+        guard let entryID = historyEntryID else { return }
+        var updatedResult = result
+        updatedResult.confirmation = confirmation
+        storage.updateHistoryResult(entryID: entryID, result: updatedResult)
     }
     
     // MARK: - Кнопки действий
@@ -215,7 +321,12 @@ struct ResultView: View {
             result: SearchResult(
                 status: .recyclable,
                 evidence: "Plastic bottles (PET #1) are widely accepted in curbside recycling programs. Rinse and remove the cap before placing in the recycling bin.",
-                sourceURL: "https://example-recycling-site.com"
+                sourceURL: "https://example-recycling-site.com",
+                confirmation: Confirmation(
+                    citation: "Plastic bottles, jars, jugs, tubs and buckets go in your blue recycling bin.",
+                    exceptions: "No exceptions mentioned",
+                    preparation: "Rinse the bottle; caps are OK if screwed on."
+                )
             )
         )
     }
