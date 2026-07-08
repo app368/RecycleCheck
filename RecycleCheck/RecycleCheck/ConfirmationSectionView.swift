@@ -83,12 +83,13 @@ struct ConfirmationSectionView: View {
 
     @ViewBuilder
     private func subsections(for confirmation: Confirmation) -> some View {
-        // Цитата с сайта — есть всегда
+        // Цитата с сайта — есть всегда; под ней секция сайта, если известна
         subsection(
             title: "Citation from website",
             icon: "text.quote",
             color: .blue,
-            text: confirmation.citation
+            text: confirmation.citation,
+            caption: confirmation.sourceSection.map { "From: \($0)" }
         )
 
         // Подразделы со значением "Not applicable" скрываем — информации не несут.
@@ -114,8 +115,15 @@ struct ConfirmationSectionView: View {
     }
 
     /// Один подраздел: заголовок с цветной иконкой, кнопка перевода
-    /// и текст на подложке
-    private func subsection(title: String, icon: String, color: Color, text: String) -> some View {
+    /// и текст на подложке. caption — необязательная подпись под текстом
+    /// (например секция сайта, откуда взята цитата)
+    private func subsection(
+        title: String,
+        icon: String,
+        color: Color,
+        text: String,
+        caption: String? = nil
+    ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Label {
@@ -141,6 +149,14 @@ struct ConfirmationSectionView: View {
                 // Долгое нажатие — системное меню: Copy / Translate / Share
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Подпись-источник (секция сайта)
+            if let caption {
+                Text(caption)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .padding()
         .background(.gray.opacity(0.08))

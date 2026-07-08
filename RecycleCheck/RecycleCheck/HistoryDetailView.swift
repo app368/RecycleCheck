@@ -205,7 +205,7 @@ struct HistoryDetailView: View {
     }
     
     private var statusText: String {
-        entry.result?.status.rawValue ?? "Not checked"
+        entry.result?.status.displayText ?? "Not checked"
     }
     
     private var statusColor: Color {

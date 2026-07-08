@@ -1,54 +1,35 @@
 import SwiftUI
 
-// MARK: - Экран результатов проверки (СП4)
-// Отображает результат поиска предмета на сайте:
-// — статус (пригоден / не пригоден / не найден)
-// — доказательство с сайта (текст)
+// MARK: - Экран результатов проверки (СП4, списочная архитектура П4)
+// Отображает готовый вердикт по базе списков (VerdictService, П3):
+// — статус: да (recyclable) / нет (notRecyclable) / неясно (notFound)
+// — подтверждающий пункт с сайта (для да/нет)
 // — фото предмета
-// Если предмет не найден — кнопка перехода к отправке запроса (СП5).
+// Для «неясно» — пояснение и два действия: запрос по email или открыть сайт.
 
 struct ResultView: View {
-    
+
     /// Проверяемый предмет (из СП1 + СП2)
     let item: RecycleItem
-    
-    /// Результат поиска на сайте (из СП3)
+
+    /// Готовый результат вердикта (из П3) — статус и подтверждающий пункт
     let result: SearchResult
 
-    /// ID записи истории — для дозаписи confirmation после догрузки (СП4.1).
-    /// nil, если запись истории недоступна (превью) — тогда догрузка не сохраняется.
+    /// ID записи истории — сохранён для совместимости с местом вызова;
+    /// в списочной архитектуре вердикт приходит готовым, дозапись не нужна
     var historyEntryID: UUID? = nil
 
-    /// Состояние догрузки подтверждения вердикта (СП4.1)
-    @State private var confirmationState: ConfirmationState = .loading
-
-    /// Исправленный вердикт — заполняется, если Claude нашёл противоречие
-    /// между вердиктом СП3 и содержимым упоминаний (СП4.1)
-    @State private var correctedStatus: RecycleStatus?
-
-    /// Текущий отображаемый статус: исправленный, если была коррекция
-    private var currentStatus: RecycleStatus {
-        correctedStatus ?? result.status
-    }
-
-    /// Идёт ли проверка вердикта. Пока она не завершена, вердикт скрыт:
-    /// пользователь видит «Checking website…» и не уходит с предварительным
-    /// ответом, который ещё может измениться (СП4.1, коррекция вердикта).
-    /// Для notFound проверки нет; готовое confirmation показывается сразу.
-    private var isChecking: Bool {
-        result.status != .notFound
-            && result.confirmation == nil
-            && confirmationState == .loading
-    }
-
-    /// Флаг показа страницы источника внутри приложения
+    /// Флаг показа страницы источника (подтверждающий пункт) внутри приложения
     @State private var showSourcePage = false
+
+    /// Флаг показа сайта переработки при исходе «неясно»
+    @State private var showWebsite = false
 
     /// Флаг перехода к отправке email (СП5)
     @State private var showEmailComposer = false
-    
+
     @Environment(\.dismiss) private var dismiss
-    
+
     private let storage = StorageService.shared
     
     var body: some View {
@@ -76,39 +57,34 @@ struct ResultView: View {
                 
                 itemPhoto
                 
-                // MARK: - Подтверждение вердикта (СП4.1)
+                // MARK: - Подтверждение вердикта (для да/нет)
 
                 confirmationSection
 
-                // MARK: - Сырой evidence (свёрнут) и ссылка на источник
+                // MARK: - Пояснение для исхода «неясно»
 
-                rawEvidenceSection
+                unclearSection
+
+                // MARK: - Ссылка на источник (страница подтверждающего пункта)
 
                 sourceLink
-                
+
                 // MARK: - Кнопки действий
-                
+
                 actionsSection
             }
             .padding()
         }
         .navigationTitle("Result")
         .navigationBarTitleDisplayMode(.inline)
-        
+
         // MARK: - Переход к отправке email (СП5)
-        
+
         .navigationDestination(isPresented: $showEmailComposer) {
             SuggestItemView(item: item)
         }
 
-        // MARK: - Догрузка подтверждения (СП4.1)
-        // Экран открывается сразу, подтверждение подгружается фоном
-
-        .task {
-            await loadConfirmationIfNeeded()
-        }
-
-        // MARK: - Страница источника внутри приложения
+        // MARK: - Страница подтверждающего пункта внутри приложения
 
         .sheet(isPresented: $showSourcePage) {
             if let url = sourcePageURL {
@@ -116,40 +92,41 @@ struct ResultView: View {
                     .ignoresSafeArea()
             }
         }
+
+        // MARK: - Сайт переработки при исходе «неясно»
+
+        .sheet(isPresented: $showWebsite) {
+            if let url = websiteURL {
+                SafariView(url: url)
+                    .ignoresSafeArea()
+            }
+        }
     }
     
     // MARK: - Иконка статуса (большая, по центру)
-    // Пока идёт проверка — индикатор ожидания вместо иконки вердикта
 
     private var statusIcon: some View {
         ZStack {
             Circle()
-                .fill((isChecking ? Color.gray : statusColor).opacity(0.15))
+                .fill(statusColor.opacity(0.15))
                 .frame(width: 100, height: 100)
 
-            if isChecking {
-                ProgressView()
-                    .controlSize(.large)
-                    .tint(.gray)
-            } else {
-                Image(systemName: statusSystemImage)
-                    .font(.system(size: 44))
-                    .foregroundStyle(statusColor)
-            }
+            Image(systemName: statusSystemImage)
+                .font(.system(size: 44))
+                .foregroundStyle(statusColor)
         }
         .padding(.top, 8)
     }
 
-    // MARK: - Бейдж со статусом
-    // Пока идёт проверка — нейтральное «Checking website…» вместо вердикта
+    // MARK: - Бейдж со статусом (да / нет / неясно)
 
     private var statusBadge: some View {
-        Text(isChecking ? "Checking website…" : currentStatus.rawValue)
+        Text(result.status.displayText)
             .font(.headline)
-            .foregroundStyle(isChecking ? Color.secondary : statusColor)
+            .foregroundStyle(statusColor)
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
-            .background((isChecking ? Color.gray : statusColor).opacity(0.1))
+            .background(statusColor.opacity(0.1))
             .clipShape(Capsule())
     }
     
@@ -171,33 +148,57 @@ struct ResultView: View {
         }
     }
     
-    // MARK: - Секция подтверждения вердикта (СП4.1)
-    // Для notFound секции нет: подтверждать нечего.
-    // Во время проверки секция скрыта — состояние ожидания показывают
-    // иконка и бейдж статуса; секция появляется вместе с вердиктом
+    // MARK: - Секция подтверждения вердикта (для да/нет)
+    // Подтверждение = дословный пункт списка + секция; приходит готовым
+    // в результате вердикта (П3). Для «неясно» подтверждать нечего
 
     @ViewBuilder
     private var confirmationSection: some View {
-        if result.status != .notFound, confirmationState != .loading {
-            ConfirmationSectionView(state: confirmationState)
+        if let confirmation = result.confirmation {
+            ConfirmationSectionView(state: .loaded(confirmation))
         }
     }
 
-    // MARK: - Сырой evidence — заметная кнопка с разворачиванием
+    // MARK: - Пояснение для исхода «неясно»
+    // Приложение не смогло определить пригодность по спискам сайта.
+    // Предлагаем два пути: запрос по email или самостоятельно зайти на сайт
 
     @ViewBuilder
-    private var rawEvidenceSection: some View {
-        if let evidence = result.evidence, !evidence.isEmpty {
-            RawEvidenceDisclosure(evidence: evidence)
+    private var unclearSection: some View {
+        if result.status == .notFound {
+            VStack(alignment: .leading, spacing: 10) {
+                Label {
+                    Text("What you can do")
+                } icon: {
+                    Image(systemName: "questionmark.circle.fill")
+                        .foregroundStyle(.orange)
+                }
+                .font(.title3)
+                .fontWeight(.semibold)
+
+                Text("The app couldn't determine whether this item is recyclable from the website's lists. To find out, you can send a request to the website's team or open the website and check it yourself.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(.orange.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
 
     // MARK: - Кнопка «Source» — ссылка спрятана под неё
 
-    /// URL страницы источника (если строка корректна)
+    /// URL страницы подтверждающего пункта (если строка корректна)
     private var sourcePageURL: URL? {
         guard let urlString = result.sourceURL else { return nil }
         return URL(string: urlString)
+    }
+
+    /// URL сайта переработки — для кнопки «Open website» при исходе «неясно»
+    private var websiteURL: URL? {
+        URL(string: AppConfig.recyclingWebsiteURL)
     }
 
     @ViewBuilder
@@ -218,84 +219,12 @@ struct ResultView: View {
         }
     }
 
-    // MARK: - Догрузка подтверждения (СП4.1)
-
-    /// Запускает сбор упоминаний (Collector) и анализ (Service),
-    /// затем дозаписывает confirmation в сохранённую запись истории.
-    /// Если подтверждение уже есть или статус notFound — ничего не делает.
-    private func loadConfirmationIfNeeded() async {
-        // Подтверждение пришло готовым — показываем сразу
-        if let existing = result.confirmation {
-            applyCorrectionIfNeeded(from: existing)
-            confirmationState = .loaded(existing)
-            return
-        }
-
-        // Для notFound секция не отображается — загрузка не нужна
-        guard result.status != .notFound else { return }
-
-        // Проверяем исходные данные: распознавание и кэш целевых страниц
-        guard let recognition = item.recognition, recognition.isValid,
-              let targetURLs = storage.loadTargetURLs(forBaseURL: AppConfig.recyclingWebsiteURL),
-              !targetURLs.isEmpty else {
-            confirmationState = .unavailable
-            return
-        }
-
-        do {
-            // Шаг 1: локальный сбор упоминаний предмета на целевых страницах
-            let mentions = try await ConfirmationCollector.shared
-                .collectMentions(for: recognition, on: targetURLs)
-
-            // Шаг 2: анализ упоминаний в Claude AI
-            let confirmation = try await ConfirmationService.shared
-                .makeConfirmation(
-                    from: mentions,
-                    recognition: recognition,
-                    verdict: result.status
-                )
-
-            // Вердикт и секция появляются одним обновлением экрана
-            withAnimation {
-                applyCorrectionIfNeeded(from: confirmation)
-                confirmationState = .loaded(confirmation)
-            }
-            saveConfirmationToHistory(confirmation)
-        } catch {
-            // Пользователь ушёл с экрана — задача отменена, ошибку не показываем
-            guard !Task.isCancelled else { return }
-            // Проверка не удалась — показываем вердикт СП3 как есть
-            withAnimation {
-                confirmationState = .unavailable
-            }
-        }
-    }
-
-    /// Применяет коррекцию вердикта, если Claude нашёл противоречие (СП4.1).
-    /// Пользователь предварительный вердикт не видит — на экране
-    /// сразу появляется итоговый
-    private func applyCorrectionIfNeeded(from confirmation: Confirmation) {
-        guard let corrected = confirmation.correctedStatus,
-              corrected != result.status else { return }
-        correctedStatus = corrected
-    }
-
-    /// Дозапись полученного confirmation в запись истории.
-    /// Статус сохраняется с учётом коррекции — история хранит итоговый вердикт
-    private func saveConfirmationToHistory(_ confirmation: Confirmation) {
-        guard let entryID = historyEntryID else { return }
-        var updatedResult = result
-        updatedResult.status = currentStatus
-        updatedResult.confirmation = confirmation
-        storage.updateHistoryResult(entryID: entryID, result: updatedResult)
-    }
-    
     // MARK: - Кнопки действий
-    
+
     private var actionsSection: some View {
         VStack(spacing: 12) {
-            
-            // Если предмет не найден — предлагаем отправить запрос (СП5)
+
+            // Исход «неясно» — два пути уточнения: запрос по email и открыть сайт
             if result.status == .notFound {
                 Button {
                     showEmailComposer = true
@@ -308,8 +237,21 @@ struct ResultView: View {
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
+
+                Button {
+                    showWebsite = true
+                } label: {
+                    Label("Open website", systemImage: "safari")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(.blue.opacity(0.12))
+                        .foregroundStyle(.blue)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                .disabled(websiteURL == nil)
             }
-            
+
             // Кнопка возврата на главный экран
             Button {
                 // Возвращаемся к корневому экрану
@@ -328,10 +270,10 @@ struct ResultView: View {
     }
     
     // MARK: - Вспомогательные свойства для стилизации по статусу
-    
-    /// Цвет, соответствующий текущему статусу (с учётом коррекции)
+
+    /// Цвет, соответствующий статусу вердикта
     private var statusColor: Color {
-        switch currentStatus {
+        switch result.status {
         case .recyclable:
             return .green
         case .notRecyclable:
@@ -341,9 +283,9 @@ struct ResultView: View {
         }
     }
 
-    /// SF Symbol, соответствующий текущему статусу (с учётом коррекции)
+    /// SF Symbol, соответствующий статусу вердикта
     private var statusSystemImage: String {
-        switch currentStatus {
+        switch result.status {
         case .recyclable:
             return "checkmark.circle.fill"
         case .notRecyclable:
@@ -360,19 +302,37 @@ struct ResultView: View {
             item: RecycleItem(userDescription: "plastic water bottle"),
             result: SearchResult(
                 status: .recyclable,
-                evidence: "Plastic bottles (PET #1) are widely accepted in curbside recycling programs. Rinse and remove the cap before placing in the recycling bin.",
                 sourceURL: "https://example-recycling-site.com",
                 confirmation: Confirmation(
-                    citation: "Plastic bottles, jars, jugs, tubs and buckets go in your blue recycling bin.",
-                    exceptions: "No exceptions mentioned",
-                    preparation: "Rinse the bottle; caps are OK if screwed on."
+                    citation: "Plastic bottles and jars with a neck",
+                    exceptions: "must be 2 inches by 2 inches or larger",
+                    preparation: "Rinse. Caps are OK if screwed on.",
+                    sourceSection: "Allowed plastic items"
                 )
             )
         )
     }
 }
 
-#Preview("Not found") {
+#Preview("Not recyclable") {
+    NavigationStack {
+        ResultView(
+            item: RecycleItem(userDescription: "glass mug"),
+            result: SearchResult(
+                status: .notRecyclable,
+                sourceURL: "https://example-recycling-site.com",
+                confirmation: Confirmation(
+                    citation: "NO drinking glasses, dishware, or drinkware of any kind.",
+                    exceptions: "Not applicable",
+                    preparation: "Not applicable",
+                    sourceSection: "What’s NOT allowed"
+                )
+            )
+        )
+    }
+}
+
+#Preview("Unclear") {
     NavigationStack {
         ResultView(
             item: RecycleItem(userDescription: "old sneakers"),
