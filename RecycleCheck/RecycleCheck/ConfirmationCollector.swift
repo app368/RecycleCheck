@@ -24,21 +24,9 @@ final class ConfirmationCollector {
     /// Максимальный суммарный объём текста (символов)
     private static let maxTotalCharacters = 12_000
     
-    // MARK: - Веса скоринга (согласованы с СП3 «Поиск на сайте»)
-    
-    /// Вес совпадения по материалу (высший приоритет)
-    private static let materialWeight = 3
-    
-    /// Вес совпадения по типу предмета (высший приоритет)
-    private static let itemTypeWeight = 3
-    
-    /// Вес совпадения по содержимому / назначению
-    private static let contentsWeight = 1
-    
-    /// Минимальная длина ключевого слова, которое имеет смысл искать
-    /// (отбрасываем короткие предлоги и шум)
-    private static let minKeywordLength = 3
-    
+    // MARK: - Скоринг
+    // Веса и правило совместной встречаемости — в модуле MentionScoring
+
     /// Минимальная длина абзаца, имеющего смысл (отбрасываем
     /// короткие пункты меню, копирайты, разделители)
     private static let minParagraphLength = 30
@@ -93,9 +81,9 @@ final class ConfirmationCollector {
             throw CollectorError.noTargetURLs
         }
         
-        // Подготавливаем ключевые слова с весами
-        let keywords = prepareKeywords(from: recognition)
-        
+        // Подготавливаем ключевые слова по категориям (материал/форма/содержимое)
+        let keywords = MentionScoring.keywords(from: recognition)
+
         guard !keywords.isEmpty else {
             throw CollectorError.noKeywords
         }
@@ -130,60 +118,6 @@ final class ConfirmationCollector {
         // MARK: Применяем лимиты
         
         return applyLimits(to: allMentions)
-    }
-    
-    // MARK: - Подготовка ключевых слов с весами
-    
-    /// Внутренняя структура: ключевое слово + его вес для скоринга
-    private struct WeightedKeyword {
-        let word: String
-        let weight: Int
-    }
-    
-    /// Превращает ItemRecognition в плоский список ключевых слов с весами.
-    /// Слова приводятся к нижнему регистру.
-    /// Поля со значением "N/A" пропускаются.
-    /// Слишком короткие слова (короче minKeywordLength) отбрасываются.
-    private func prepareKeywords(from recognition: ItemRecognition) -> [WeightedKeyword] {
-        var keywords: [WeightedKeyword] = []
-        
-        // Слова из материала (вес 3)
-        if recognition.material.lowercased() != "n/a" {
-            let words = recognition.material
-                .lowercased()
-                .split(separator: " ")
-                .map(String.init)
-                .filter { $0.count >= Self.minKeywordLength }
-            for word in words {
-                keywords.append(WeightedKeyword(word: word, weight: Self.materialWeight))
-            }
-        }
-        
-        // Слова из типа предмета (вес 3)
-        if recognition.itemType.lowercased() != "n/a" {
-            let words = recognition.itemType
-                .lowercased()
-                .split(separator: " ")
-                .map(String.init)
-                .filter { $0.count >= Self.minKeywordLength }
-            for word in words {
-                keywords.append(WeightedKeyword(word: word, weight: Self.itemTypeWeight))
-            }
-        }
-        
-        // Слова из содержимого / назначения (вес 1)
-        for contentValue in recognition.contentsUse where contentValue.lowercased() != "n/a" {
-            let words = contentValue
-                .lowercased()
-                .split(separator: " ")
-                .map(String.init)
-                .filter { $0.count >= Self.minKeywordLength }
-            for word in words {
-                keywords.append(WeightedKeyword(word: word, weight: Self.contentsWeight))
-            }
-        }
-        
-        return keywords
     }
     
     // MARK: - Извлечение абзацев из HTML
@@ -289,17 +223,14 @@ final class ConfirmationCollector {
     private func makeMention(
         fromParagraph paragraph: String,
         sourceURL: String,
-        keywords: [WeightedKeyword]
+        keywords: MentionScoring.Keywords
     ) -> Mention? {
-        let lowerParagraph = paragraph.lowercased()
-        
-        // Считаем суммарный скоринг абзаца:
-        // каждое найденное ключевое слово добавляет свой вес
-        var score = 0
-        for keyword in keywords where lowerParagraph.contains(keyword.word) {
-            score += keyword.weight
-        }
-        
+        // Умный скоринг: форма получает полный вес только рядом с материалом
+        let score = MentionScoring.score(
+            paragraphLowercased: paragraph.lowercased(),
+            keywords: keywords
+        )
+
         // Если ни одного совпадения — упоминания нет
         guard score > 0 else {
             return nil
