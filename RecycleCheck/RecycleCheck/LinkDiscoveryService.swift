@@ -199,32 +199,37 @@ final class LinkDiscoveryService {
         
         // MARK: Формируем запрос к Claude API
         
+        // Дискавери нацелено на страницы со СПИСКАМИ правил переработки
+        // (списочная архитектура): что разрешено/запрещено в баке переработки.
+        // Компост и мусор — вне задачи, такие страницы не нужны
         let prompt = """
         You are analyzing a recycling website. Below is a list of URL paths from this website.
-        
-        Select ONLY the paths that likely contain information about specific recyclable or \
-        non-recyclable items (materials, packaging, containers, waste categories).
-        
-        INCLUDE paths related to:
-        - Lists of recyclable/non-recyclable items
-        - Material categories (plastic, paper, glass, metal, etc.)
-        - Waste sorting guides
-        - Specific item pages
-        
+
+        Select ONLY the paths that likely contain LISTS OF RULES about what items are \
+        allowed or not allowed in the household RECYCLING bin.
+
+        INCLUDE paths that likely hold:
+        - Lists of accepted / not accepted items for recycling
+        - "What can I recycle" guides for residents
+        - Rules for recyclable material categories (plastic, paper, glass, metal, etc.)
+        - FAQ pages about what can or cannot be recycled
+
         EXCLUDE paths related to:
-        - General information (about, contact, FAQ, help)
+        - Compost, yard debris or garbage (this app only answers about recycling)
+        - General information (about, contact, help)
         - News, blog posts, events
-        - Services, programs, policies
+        - Services, schedules, rates, programs, policies
         - User accounts, settings
         - Games, apps, tools
         - Printable guides, PDF downloads
-        - Educational content about recycling process
-        
+        - Educational content about the recycling process (how recycling works, benefits)
+        - Business or commercial waste (the app serves households)
+
         Respond with ONLY a JSON array of the selected paths, no other text:
         ["<path1>", "<path2>"]
-        
+
         If none of the paths are relevant, respond with: []
-        
+
         PATHS:
         \(pathsList)
         """

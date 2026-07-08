@@ -7,25 +7,13 @@ import Foundation
 // Вердикт по предмету строится матчингом против этой базы (П3),
 // без чтения страниц сайта в момент проверки.
 
-// MARK: - Поток отходов
-
-/// Поток отходов, к которому сайт относит пункт правила.
-/// Если поток на сайте явно не выражен, экстрактор использует .recycling —
-/// списки сайта о переработке по умолчанию относятся к баку переработки
-enum WasteStream: String, Codable, Equatable {
-    /// Бак переработки
-    case recycling
-    /// Компост
-    case compost
-    /// Обычный мусор (свалка)
-    case garbage
-}
-
 // MARK: - Тип пункта правила
 
-/// Разрешён или запрещён предмет в своём потоке.
+/// Разрешён или запрещён предмет в баке переработки.
 /// Пример: «All glass bottles and jars» в секции Allowed → .allowed;
-/// «NO window glass or mirrors» → .notAllowed
+/// «NO window glass or mirrors» → .notAllowed.
+/// База охватывает только переработку (recycling); компост и мусор —
+/// отдельная задача, в базу не попадают
 enum RuleVerdict: String, Codable, Equatable {
     case allowed
     case notAllowed = "not_allowed"
@@ -80,11 +68,8 @@ struct RuleEntry: Codable, Identifiable, Equatable {
     /// Нормативный текст пункта («glass bottles and jars»)
     let itemText: String
 
-    /// Разрешён или запрещён
+    /// Разрешён или запрещён в баке переработки
     let verdict: RuleVerdict
-
-    /// Поток, к которому сайт относит пункт
-    let stream: WasteStream
 
     /// Условия применимости пункта (например «only if clean and dry»);
     /// пустой массив — без условий
@@ -102,7 +87,6 @@ struct RuleEntry: Codable, Identifiable, Equatable {
         material: String?,
         itemText: String,
         verdict: RuleVerdict,
-        stream: WasteStream,
         conditions: [String] = [],
         preparation: [String] = [],
         origin: RuleOrigin
@@ -111,7 +95,6 @@ struct RuleEntry: Codable, Identifiable, Equatable {
         self.material = material
         self.itemText = itemText
         self.verdict = verdict
-        self.stream = stream
         self.conditions = conditions
         self.preparation = preparation
         self.origin = origin
