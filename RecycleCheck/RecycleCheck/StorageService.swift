@@ -202,4 +202,43 @@ final class StorageService {
         defaults.removeObject(forKey: Keys.cachedBaseURL)
         defaults.removeObject(forKey: Keys.cachedTargetURLsDate)
     }
+
+    // MARK: - База правил сайта (списочная архитектура, П1)
+    // База может быть объёмной, поэтому хранится JSON-файлом в Documents,
+    // а не в UserDefaults. Даты — в ISO 8601, JSON с отступами:
+    // файл удобно читать при отладке экстрактора
+
+    /// URL файла базы правил в Documents
+    private var siteRulesFileURL: URL {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        return documentsPath.appendingPathComponent("site_rules.json")
+    }
+
+    /// Сохранение базы правил (перезаписывает предыдущую)
+    func saveSiteRules(_ rules: SiteRules) {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let data = try? encoder.encode(rules) else { return }
+        try? data.write(to: siteRulesFileURL)
+    }
+
+    /// Загрузка базы правил.
+    /// Возвращает nil, если базы нет или она собрана для другого сайта —
+    /// baseURL сравниваются в нормализованном виде
+    func loadSiteRules(forBaseURL baseURL: String) -> SiteRules? {
+        guard let data = try? Data(contentsOf: siteRulesFileURL) else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        guard let rules = try? decoder.decode(SiteRules.self, from: data),
+              URLNormalizer.normalize(rules.baseURL) == URLNormalizer.normalize(baseURL) else {
+            return nil
+        }
+        return rules
+    }
+
+    /// Удаление базы правил (при смене сайта)
+    func clearSiteRules() {
+        try? FileManager.default.removeItem(at: siteRulesFileURL)
+    }
 }
