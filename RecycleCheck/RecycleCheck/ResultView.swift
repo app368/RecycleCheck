@@ -34,29 +34,25 @@ struct ResultView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                
-                // MARK: - Иконка статуса
-                
-                statusIcon
-                
-                // MARK: - Название предмета
-                
+            VStack(spacing: 14) {
+
+                // MARK: - Название предмета (первым)
+
                 Text(item.displayName)
-                    .font(.title2)
+                    .font(.title3)
                     .fontWeight(.semibold)
                     .multilineTextAlignment(.center)
                     // Долгое нажатие — системное меню: Copy / Translate / Share
                     .textSelection(.enabled)
-                
-                // MARK: - Статус пригодности
 
-                statusBadge
-                
                 // MARK: - Фото предмета
-                
+
                 itemPhoto
-                
+
+                // MARK: - Строка результата (текст + маленькая иконка, в цвете)
+
+                resultLine
+
                 // MARK: - Подтверждение вердикта (для да/нет)
 
                 confirmationSection
@@ -77,6 +73,29 @@ struct ResultView: View {
         }
         .navigationTitle("Result")
         .navigationBarTitleDisplayMode(.inline)
+
+        // MARK: - «Done» в правом верхнем углу — возврат на главный экран
+
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    dismiss()
+                } label: {
+                    Text("Done")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        // Немного вытянута по ширине
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 6)
+                        .background(.blue)
+                        .clipShape(Capsule())
+                }
+                // Убираем стандартную подложку кнопки навбара —
+                // иначе синяя капсула сидит внутри белого фона
+                .buttonStyle(.plain)
+            }
+        }
 
         // MARK: - Переход к отправке email (СП5)
 
@@ -103,35 +122,27 @@ struct ResultView: View {
         }
     }
     
-    // MARK: - Иконка статуса (большая, по центру)
+    // MARK: - Строка результата (да / нет / неясно)
+    // Компактная строка вместо большой иконки: текст ответа + маленькая
+    // иконка в размер строки, вся в цвете вердикта
 
-    private var statusIcon: some View {
-        ZStack {
-            Circle()
-                .fill(statusColor.opacity(0.15))
-                .frame(width: 100, height: 100)
-
+    private var resultLine: some View {
+        Label {
+            Text(result.status.displayText)
+        } icon: {
             Image(systemName: statusSystemImage)
-                .font(.system(size: 44))
-                .foregroundStyle(statusColor)
         }
-        .padding(.top, 8)
+        .font(.headline)
+        .foregroundStyle(statusColor)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+        .background(statusColor.opacity(0.12))
+        .clipShape(Capsule())
     }
 
-    // MARK: - Бейдж со статусом (да / нет / неясно)
-
-    private var statusBadge: some View {
-        Text(result.status.displayText)
-            .font(.headline)
-            .foregroundStyle(statusColor)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 10)
-            .background(statusColor.opacity(0.1))
-            .clipShape(Capsule())
-    }
-    
     // MARK: - Фото предмета
-    
+    // Уменьшено ради экономии места (зум фото — в списке доработок)
+
     @ViewBuilder
     private var itemPhoto: some View {
         if let fileName = item.photoFileName,
@@ -139,7 +150,7 @@ struct ResultView: View {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFit()
-                .frame(maxHeight: 200)
+                .frame(maxHeight: 130)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
@@ -159,33 +170,50 @@ struct ResultView: View {
         }
     }
 
-    // MARK: - Пояснение для исхода «неясно»
-    // Приложение не смогло определить пригодность по спискам сайта.
-    // Предлагаем два пути: запрос по email или самостоятельно зайти на сайт
+    // MARK: - Пояснение для исхода «неясно» (две секции, в синем)
+    // «What does this mean» — что произошло; «What you can do» — рекомендация
 
     @ViewBuilder
     private var unclearSection: some View {
         if result.status == .notFound {
             VStack(alignment: .leading, spacing: 10) {
-                Label {
-                    Text("What you can do")
-                } icon: {
-                    Image(systemName: "questionmark.circle.fill")
-                        .foregroundStyle(.orange)
-                }
-                .font(.title3)
-                .fontWeight(.semibold)
-
-                Text("The app couldn't determine whether this item is recyclable from the website's lists. To find out, you can send a request to the website's team or open the website and check it yourself.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                unclearCard(
+                    title: "What does this mean",
+                    icon: "questionmark.circle.fill",
+                    text: "The app couldn't determine whether this item is recyclable from the website's lists."
+                )
+                unclearCard(
+                    title: "What you can do",
+                    icon: "lightbulb.fill",
+                    text: "To find out, you can send a request to the website's team or open the website and check it yourself."
+                )
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(.orange.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
+    }
+
+    /// Одна секция экрана «неясно»: заголовок с синей иконкой и текст.
+    /// Компактная: заголовок в размер subheadline, меньше отступы
+    private func unclearCard(title: String, icon: String, text: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label {
+                Text(title)
+                    .foregroundStyle(.primary)
+            } icon: {
+                Image(systemName: icon)
+                    .foregroundStyle(statusColor)
+            }
+            .font(.subheadline)
+            .fontWeight(.semibold)
+
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(statusColor.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Кнопка «Source» — ссылка спрятана под неё
@@ -212,66 +240,55 @@ struct ResultView: View {
                     .fontWeight(.medium)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
-                    .background(.blue.opacity(0.1))
-                    .foregroundStyle(.blue)
+                    .background(statusColor.opacity(0.12))
+                    .foregroundStyle(statusColor)
                     .clipShape(Capsule())
             }
         }
     }
 
-    // MARK: - Кнопки действий
+    // MARK: - Кнопки действий (только для «неясно»; «Done» — в навбаре)
+    // Два пути уточнения: запрос по email и открыть сайт. Оба в одном стиле,
+    // в цвете вердикта
 
+    @ViewBuilder
     private var actionsSection: some View {
-        VStack(spacing: 12) {
-
-            // Исход «неясно» — два пути уточнения: запрос по email и открыть сайт
-            if result.status == .notFound {
-                Button {
+        if result.status == .notFound {
+            VStack(spacing: 10) {
+                actionButton(title: "Send a request by email", icon: "envelope.fill") {
                     showEmailComposer = true
-                } label: {
-                    Label("Suggest adding this item", systemImage: "envelope.fill")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.blue)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
 
-                Button {
+                actionButton(title: "Open website", icon: "safari") {
                     showWebsite = true
-                } label: {
-                    Label("Open website", systemImage: "safari")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.blue.opacity(0.12))
-                        .foregroundStyle(.blue)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
                 .disabled(websiteURL == nil)
             }
-
-            // Кнопка возврата на главный экран
-            Button {
-                // Возвращаемся к корневому экрану
-                dismiss()
-            } label: {
-                Text("Done")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.gray.opacity(0.15))
-                    .foregroundStyle(.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
+            .padding(.top, 4)
         }
-        .padding(.top, 8)
+    }
+
+    /// Кнопка действия в едином стиле: заливка цветом вердикта, белый текст
+    private func actionButton(
+        title: String,
+        icon: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(statusColor)
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
     }
     
     // MARK: - Вспомогательные свойства для стилизации по статусу
 
-    /// Цвет, соответствующий статусу вердикта
+    /// Цвет, соответствующий статусу вердикта:
+    /// да — зелёный, нет — красный, неясно — синий
     private var statusColor: Color {
         switch result.status {
         case .recyclable:
@@ -279,7 +296,7 @@ struct ResultView: View {
         case .notRecyclable:
             return .red
         case .notFound:
-            return .orange
+            return .blue
         }
     }
 

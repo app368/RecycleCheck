@@ -79,11 +79,14 @@ struct ConfirmationSectionView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
-    // MARK: - Три подраздела подтверждения
+    // MARK: - Подтверждение: только цитата с сайта
+    // Концепция «простого ответа»: приложение отвечает на один вопрос —
+    // пригоден предмет или нет. Условия и подготовка сознательно не показываем
+    // (это увело бы к разбору текстов и усложнению приложения)
 
     @ViewBuilder
     private func subsections(for confirmation: Confirmation) -> some View {
-        // Цитата с сайта — есть всегда; под ней секция сайта, если известна
+        // Дословный пункт с сайта; под ним секция сайта, если известна
         subsection(
             title: "Citation from website",
             icon: "text.quote",
@@ -91,27 +94,6 @@ struct ConfirmationSectionView: View {
             text: confirmation.citation,
             caption: confirmation.sourceSection.map { "From: \($0)" }
         )
-
-        // Подразделы со значением "Not applicable" скрываем — информации не несут.
-        // Значения "No exceptions mentioned" / "No preparation instructions found"
-        // показываем: они информативны для пользователя.
-        if let exceptions = displayableValue(confirmation.exceptions) {
-            subsection(
-                title: "Exceptions",
-                icon: "exclamationmark.triangle.fill",
-                color: .orange,
-                text: exceptions
-            )
-        }
-
-        if let preparation = displayableValue(confirmation.preparation) {
-            subsection(
-                title: "How to prepare",
-                icon: "wrench.and.screwdriver.fill",
-                color: .teal,
-                text: preparation
-            )
-        }
     }
 
     /// Один подраздел: заголовок с цветной иконкой, кнопка перевода
@@ -161,16 +143,6 @@ struct ConfirmationSectionView: View {
         .padding()
         .background(.gray.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 10))
-    }
-
-    /// Значение для отображения: nil, если поле равно "Not applicable" или пусто
-    private func displayableValue(_ value: String) -> String? {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty,
-              trimmed.lowercased() != "not applicable" else {
-            return nil
-        }
-        return trimmed
     }
 }
 

@@ -208,38 +208,19 @@ final class VerdictService {
         return SearchResult(
             status: status,
             sourceURL: entry.origin.pageURL,
-            confirmation: makeConfirmation(from: entry, status: status)
+            confirmation: makeConfirmation(from: entry)
         )
     }
 
     /// Строит подтверждение из совпавшего пункта базы.
-    /// Поля exceptions/preparation используют существующие плейсхолдеры
-    /// ConfirmationSectionView («Not applicable» скрывается в UI)
-    private func makeConfirmation(from entry: RuleEntry, status: RecycleStatus) -> Confirmation {
-        // Условия пункта → слот «Exceptions» (оговорки к вердикту)
-        let exceptions: String
-        if !entry.conditions.isEmpty {
-            exceptions = entry.conditions.joined(separator: "; ")
-        } else if status == .recyclable {
-            exceptions = "No exceptions mentioned"
-        } else {
-            exceptions = "Not applicable"
-        }
-
-        // Подготовка осмысленна для пригодных предметов
-        let preparation: String
-        if status == .recyclable {
-            preparation = entry.preparation.isEmpty
-                ? "No preparation instructions found"
-                : entry.preparation.joined(separator: ". ")
-        } else {
-            preparation = "Not applicable"
-        }
-
-        return Confirmation(
+    /// Показывается только дословная цитата и секция сайта (концепция
+    /// «простого ответа»); exceptions/preparation в UI не выводятся —
+    /// поля модели остаются заглушками ради совместимости истории
+    private func makeConfirmation(from entry: RuleEntry) -> Confirmation {
+        Confirmation(
             citation: entry.origin.quote,
-            exceptions: exceptions,
-            preparation: preparation,
+            exceptions: "Not applicable",
+            preparation: "Not applicable",
             sourceSection: entry.origin.section.isEmpty ? nil : entry.origin.section
         )
     }
