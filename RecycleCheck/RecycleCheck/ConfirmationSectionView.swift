@@ -79,43 +79,33 @@ struct ConfirmationSectionView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
-    // MARK: - Три подраздела подтверждения
+    // MARK: - Подтверждение: только цитата с сайта
+    // Концепция «простого ответа»: приложение отвечает на один вопрос —
+    // пригоден предмет или нет. Условия и подготовка сознательно не показываем
+    // (это увело бы к разбору текстов и усложнению приложения)
 
     @ViewBuilder
     private func subsections(for confirmation: Confirmation) -> some View {
-        // Цитата с сайта — есть всегда
+        // Дословный пункт с сайта; под ним секция сайта, если известна
         subsection(
             title: "Citation from website",
             icon: "text.quote",
             color: .blue,
-            text: confirmation.citation
+            text: confirmation.citation,
+            caption: confirmation.sourceSection.map { "From: \($0)" }
         )
-
-        // Подразделы со значением "Not applicable" скрываем — информации не несут.
-        // Значения "No exceptions mentioned" / "No preparation instructions found"
-        // показываем: они информативны для пользователя.
-        if let exceptions = displayableValue(confirmation.exceptions) {
-            subsection(
-                title: "Exceptions",
-                icon: "exclamationmark.triangle.fill",
-                color: .orange,
-                text: exceptions
-            )
-        }
-
-        if let preparation = displayableValue(confirmation.preparation) {
-            subsection(
-                title: "How to prepare",
-                icon: "wrench.and.screwdriver.fill",
-                color: .teal,
-                text: preparation
-            )
-        }
     }
 
     /// Один подраздел: заголовок с цветной иконкой, кнопка перевода
-    /// и текст на подложке
-    private func subsection(title: String, icon: String, color: Color, text: String) -> some View {
+    /// и текст на подложке. caption — необязательная подпись под текстом
+    /// (например секция сайта, откуда взята цитата)
+    private func subsection(
+        title: String,
+        icon: String,
+        color: Color,
+        text: String,
+        caption: String? = nil
+    ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Label {
@@ -141,20 +131,18 @@ struct ConfirmationSectionView: View {
                 // Долгое нажатие — системное меню: Copy / Translate / Share
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Подпись-источник (секция сайта)
+            if let caption {
+                Text(caption)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .padding()
         .background(.gray.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 10))
-    }
-
-    /// Значение для отображения: nil, если поле равно "Not applicable" или пусто
-    private func displayableValue(_ value: String) -> String? {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty,
-              trimmed.lowercased() != "not applicable" else {
-            return nil
-        }
-        return trimmed
     }
 }
 

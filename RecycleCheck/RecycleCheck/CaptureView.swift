@@ -55,7 +55,6 @@ struct CaptureView: View {
     
     private let storage = StorageService.shared
     private let visionService = VisionService.shared
-    private let scrapingService = WebScrapingService.shared
     
     var body: some View {
         ScrollView {
@@ -588,14 +587,14 @@ struct CaptureView: View {
         }
     }
     
-    // MARK: - Шаг 2: Поиск на сайте (СП3)
-    
+    // MARK: - Шаг 2: Вердикт по базе списков (П3)
+
     private func startSearch() {
         guard let image = capturedImage else { return }
-        
+
         isSearching = true
         focusedField = nil
-        
+
         Task {
             // Собираем финальное описание из отредактированных полей
             let materialValue = editMaterial.trimmingCharacters(in: .whitespaces).lowercased()
@@ -603,29 +602,32 @@ struct CaptureView: View {
                 .split(separator: ",")
                 .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
                 .filter { !$0.isEmpty }
-            
+
             let finalRecognition = ItemRecognition(
                 category: .item,
                 material: materialValue == "not applicable" ? "N/A" : materialValue,
                 itemType: editItemType.trimmingCharacters(in: .whitespaces).lowercased(),
                 contentsUse: contents.isEmpty ? ["N/A"] : contents
             )
-            
+
             // Сохраняем фото в локальное хранилище
             let photoFileName = storage.savePhoto(image)
-            
+
             // Создаём предмет для проверки
             let item = RecycleItem(
                 recognition: finalRecognition,
                 photoFileName: photoFileName
             )
-            
-            // MARK: Поиск на сайте (СП3)
-            
-            var result: SearchResult
-            
+
+            // MARK: Вердикт по базе списков (П3)
+            // Сайт не читается: один вопрос к Claude «есть ли предмет в списках».
+            // Единственная ошибка, которую показываем, — база ещё не собрана
+            // (предложить Refresh); сетевые сбои внутри дают исход «неясно»
+
+            let result: SearchResult
+
             do {
-                result = try await scrapingService.searchItem(item)
+                result = try await VerdictService.shared.decideVerdict(for: finalRecognition)
             } catch {
                 await MainActor.run {
                     isSearching = false
@@ -634,12 +636,12 @@ struct CaptureView: View {
                 }
                 return
             }
-            
+
             // MARK: Сохраняем в историю и переходим к результатам (СП4)
-            
+
             let historyEntry = CheckHistoryEntry(item: item, result: result)
             storage.addHistoryEntry(historyEntry)
-            
+
             await MainActor.run {
                 isSearching = false
                 recycleItem = item

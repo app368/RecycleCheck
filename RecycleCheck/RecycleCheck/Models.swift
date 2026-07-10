@@ -186,15 +186,36 @@ struct Confirmation: Codable, Equatable {
     /// противоречит вердикту СП3 (например, предмет попал в список исключений).
     /// nil — вердикт подтверждён (или запись сохранена до появления коррекции).
     var correctedStatus: RecycleStatus? = nil
+
+    /// Секция сайта, где найден подтверждающий пункт (списочная архитектура).
+    /// nil — старые записи истории или подтверждение без секции
+    var sourceSection: String? = nil
 }
 
 // MARK: - Результат поиска (СП3, СП4)
 
-/// Статус пригодности предмета для переработки
+/// Статус пригодности предмета для переработки.
+/// Три исхода вердикта: да (recyclable) / нет (notRecyclable) /
+/// неясно (notFound — приложение не смогло определить по спискам сайта).
+/// rawValue сохраняется в истории — не менять; текст для UI — в displayText
 enum RecycleStatus: String, Codable {
     case recyclable = "Recyclable"
     case notRecyclable = "Not recyclable"
     case notFound = "Not found on website"
+
+    /// Текст статуса для интерфейса.
+    /// notFound — это «неясно», а не «нет на сайте»:
+    /// приложение не смогло определить пригодность
+    var displayText: String {
+        switch self {
+        case .recyclable:
+            return "Recyclable"
+        case .notRecyclable:
+            return "Not recyclable"
+        case .notFound:
+            return "Couldn't determine"
+        }
+    }
 }
 
 /// Результат поиска предмета на сайте

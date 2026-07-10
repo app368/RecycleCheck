@@ -97,7 +97,7 @@ struct SettingsView: View {
                             ProgressView()
                                 .controlSize(.large)
                                 .tint(.blue)
-                            Text("Discovering pages...")
+                            Text("Reading website rules...")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
                                 .foregroundStyle(.blue)
@@ -137,9 +137,9 @@ struct SettingsView: View {
                     .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                     .disabled(isDiscovering)
                 } header: {
-                    Text("Page discovery")
+                    Text("Website rules")
                 } footer: {
-                    Text("Re-discovers the website pages used for item search — refresh if the website content has changed.")
+                    Text("Rebuilds the recycling rules from the website pages — refresh if the website content has changed. This may take a few minutes.")
                 }
             }
 
@@ -178,7 +178,7 @@ struct SettingsView: View {
         .onAppear {
             loadSettings()
         }
-        .alert("Page discovery failed", isPresented: $showDiscoveryError) {
+        .alert("Rules update failed", isPresented: $showDiscoveryError) {
             Button("OK", role: .cancel) { }
         } message: {
             Text(discoveryErrorMessage)
@@ -227,11 +227,20 @@ struct SettingsView: View {
         updateDiscoveryStatus()
     }
 
-    // MARK: - Статус кэша целевых страниц
+    // MARK: - Статус базы правил / кэша целевых страниц
 
-    /// Собирает строку состояния кэша: количество страниц + дата сборки.
-    /// «6 pages found · updated Jul 7, 2026»
+    /// Собирает строку состояния: приоритет — база правил
+    /// («6 pages · 150 rules · updated Jul 8, 2026»), пока базы нет —
+    /// прежний статус кэша целевых URL («6 pages found · updated Jul 7, 2026»)
     private func updateDiscoveryStatus() {
+        // База правил (списочная архитектура)
+        if let rules = storage.loadSiteRules(forBaseURL: AppConfig.recyclingWebsiteURL) {
+            discoveryResult = rules.summary
+                + " · updated \(rules.builtAt.formatted(date: .abbreviated, time: .omitted))"
+            return
+        }
+
+        // База ещё не собрана — показываем состояние старого кэша
         guard let cached = storage.loadTargetURLs(forBaseURL: AppConfig.recyclingWebsiteURL),
               !cached.isEmpty else {
             discoveryResult = nil
@@ -259,9 +268,11 @@ struct SettingsView: View {
         UserDefaults.standard.set(requestEmail, forKey: "settings_request_email")
         focusedField = nil
         
-        // Если URL изменился — запускаем обнаружение целевых страниц
+        // Если URL изменился — сбрасываем кэш и базу правил старого сайта
+        // и запускаем сборку для нового
         if newURL != previousURL && !newURL.isEmpty {
             storage.clearTargetURLsCache()
+            storage.clearSiteRules()
             discoveryResult = nil
             startDiscovery(for: newURL)
         } else {
@@ -283,20 +294,19 @@ struct SettingsView: View {
         }
     }
     
-    // MARK: - Запуск обнаружения целевых страниц (СП3.1)
-    
+    // MARK: - Запуск конвейера сборки базы правил (П2.4)
+
+    /// «Refresh source pages»: дискавери страниц со списками + AI-извлечение
+    /// пунктов + сохранение базы. Кэш целевых URL сохраняется внутри конвейера
     private func startDiscovery(for urlString: String) {
         isDiscovering = true
         discoveryResult = nil
-        
+
         Task {
             do {
-                let targetURLs = try await LinkDiscoveryService.shared
-                    .discoverTargetPages(baseURLString: urlString)
-                
-                // Сохраняем в кэш
-                storage.saveTargetURLs(targetURLs, forBaseURL: urlString)
-                
+                _ = try await SiteRulesBuilder.shared
+                    .buildRules(baseURLString: urlString)
+
                 await MainActor.run {
                     isDiscovering = false
                     updateDiscoveryStatus()
