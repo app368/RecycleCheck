@@ -89,9 +89,6 @@ struct CaptureView: View {
                         // Категория item → карточка с редактированием + кнопка Search
                         recognitionCard
                         searchButton
-                        
-                        // ВРЕМЕННО: тест ConfirmationCollector (СП4.1)
-                        testCollectorButton
                     } else {
                         // Категория bulky / otherObjects / unclear → плашка с сообщением
                         rejectionCard(recognition: recognition)
@@ -423,137 +420,7 @@ struct CaptureView: View {
     private var canSearch: Bool {
         !editItemType.trimmingCharacters(in: .whitespaces).isEmpty
     }
-    
-    // MARK: - ВРЕМЕННО: Кнопка теста ConfirmationCollector (СП4.1)
-    // Удалить после проверки сервиса.
-    
-    private var testCollectorButton: some View {
-        Button {
-            runConfirmationCollectorTest()
-        } label: {
-            Label("Test Collector", systemImage: "ladybug")
-                .font(.subheadline)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(.orange.opacity(0.15))
-                .foregroundStyle(.orange)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-        }
-        .disabled(!canSearch)
-    }
-    
-    // MARK: - ВРЕМЕННО: Тестовая функция ConfirmationCollector (СП4.1)
-    // Запускает сбор упоминаний на тех же целевых URL, что используются
-    // для основного поиска, и печатает результаты в консоль Xcode.
-    // Использует finalRecognition, собранный из отредактированных полей —
-    // так же, как это делает startSearch.
-    
-    private func runConfirmationCollectorTest() {
-        // Получаем текущий URL сайта переработки из настроек
-        let baseURL = AppConfig.recyclingWebsiteURL
-        
-        // Получаем кэшированные целевые URL для этого сайта
-        guard let targetURLs = storage.loadTargetURLs(forBaseURL: baseURL),
-              !targetURLs.isEmpty else {
-            print("⚠️ ConfirmationCollector test: no target URLs in cache")
-            return
-        }
-        
-        // Собираем finalRecognition из отредактированных полей —
-        // та же логика, что в startSearch
-        let materialValue = editMaterial.trimmingCharacters(in: .whitespaces).lowercased()
-        let contents = editContentsUse
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
-            .filter { !$0.isEmpty }
-        
-        let testRecognition = ItemRecognition(
-            category: .item,
-            material: materialValue == "not applicable" ? "N/A" : materialValue,
-            itemType: editItemType.trimmingCharacters(in: .whitespaces).lowercased(),
-            contentsUse: contents.isEmpty ? ["N/A"] : contents
-        )
-        
-        print("\n🟡 ConfirmationCollector test started")
-        print("   Item: \(testRecognition.displayName)")
-        print("   Material: \(testRecognition.material), Type: \(testRecognition.itemType)")
-        print("   Contents: \(testRecognition.contentsUse.joined(separator: ", "))")
-        print("   Target URLs: \(targetURLs.count)")
-        
-        Task {
-            do {
-                let startTime = Date()
-                let mentions = try await ConfirmationCollector.shared
-                    .collectMentions(for: testRecognition, on: targetURLs)
-                let elapsed = Date().timeIntervalSince(startTime)
-                
-                print("\n🟢 Collected \(mentions.count) mentions in \(String(format: "%.2f", elapsed))s")
-                
-                // Сводка по объёму
-                let totalChars = mentions.reduce(0) { $0 + $1.text.count }
-                let totalScore = mentions.reduce(0) { $0 + $1.score }
-                print("   Total characters: \(totalChars)")
-                print("   Total score: \(totalScore)")
-                
-                // Подробности по каждому упоминанию
-                for (i, mention) in mentions.enumerated() {
-                    print("\n   [\(i + 1)] score=\(mention.score), \(mention.text.count) chars")
-                    print("       source: \(mention.sourceURL)")
-                    let preview = mention.text.prefix(250)
-                    let suffix = mention.text.count > 250 ? "..." : ""
-                    print("       text: \(preview)\(suffix)")
-                }
-                
-                print("\n🟡 ConfirmationCollector test finished\n")
-                
-                // MARK: Тест ConfirmationService — анализ упоминаний через Claude AI
-                
-                // Для теста используем фиктивный вердикт RECYCLABLE.
-                // В боевом режиме сюда придёт реальный вердикт из СП3.
-                // Если хочешь протестировать NOT RECYCLABLE — замени .recyclable
-                // на .notRecyclable и проверь, что exceptions/preparation
-                // станут "Not applicable".
-                let testVerdict: RecycleStatus = .recyclable
-                
-                print("🟡 ConfirmationService test started")
-                print("   Verdict (test): \(testVerdict.rawValue)")
-                
-                let confirmationStartTime = Date()
-                
-                do {
-                    let confirmation = try await ConfirmationService.shared
-                        .makeConfirmation(
-                            from: mentions,
-                            recognition: testRecognition,
-                            verdict: testVerdict
-                        )
-                    let confirmationElapsed = Date().timeIntervalSince(confirmationStartTime)
-                    
-                    print("\n🟢 Confirmation received in \(String(format: "%.2f", confirmationElapsed))s")
-                    print("\n   📌 Citation:")
-                    print("      \(confirmation.citation)")
-                    print("\n   ⚠️  Exceptions:")
-                    print("      \(confirmation.exceptions)")
-                    print("\n   🛠  Preparation:")
-                    print("      \(confirmation.preparation)")
 
-                    // Результат проверки вердикта Claude
-                    if let corrected = confirmation.correctedStatus {
-                        print("\n   🔁 Verdict CORRECTED: \(testVerdict.rawValue) → \(corrected.rawValue)")
-                    } else {
-                        print("\n   ✅ Verdict confirmed: \(testVerdict.rawValue)")
-                    }
-
-                    print("\n🟡 ConfirmationService test finished\n")
-                } catch {
-                    print("\n🔴 ConfirmationService test failed: \(error.localizedDescription)\n")
-                }
-            } catch {
-                print("\n🔴 ConfirmationCollector test failed: \(error.localizedDescription)\n")
-            }
-        }
-    }
-    
     // MARK: - Шаг 1: Распознавание фото через Vision API (СП2)
     
     private func startRecognition() {

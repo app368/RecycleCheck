@@ -230,8 +230,7 @@ struct TranslateButton: View {
         ConfirmationSectionView(
             state: .loaded(Confirmation(
                 citation: "Cartons (milk, juice, soup; empty and dry) go in your blue recycling bin.",
-                exceptions: "No exceptions mentioned",
-                preparation: "Empty and dry the carton before placing it in the bin."
+                sourceSection: "Allowed paper items"
             ))
         )
         .padding()
@@ -243,8 +242,7 @@ struct TranslateButton: View {
         ConfirmationSectionView(
             state: .loaded(Confirmation(
                 citation: "NO drinking glasses, dishware, or drinkware of any kind.",
-                exceptions: "Not applicable",
-                preparation: "Not applicable"
+                sourceSection: "What’s NOT allowed"
             ))
         )
         .padding()

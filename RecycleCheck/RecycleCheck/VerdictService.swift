@@ -212,15 +212,11 @@ final class VerdictService {
         )
     }
 
-    /// Строит подтверждение из совпавшего пункта базы.
-    /// Показывается только дословная цитата и секция сайта (концепция
-    /// «простого ответа»); exceptions/preparation в UI не выводятся —
-    /// поля модели остаются заглушками ради совместимости истории
+    /// Строит подтверждение из совпавшего пункта базы:
+    /// дословная цитата + секция сайта (концепция «простого ответа»)
     private func makeConfirmation(from entry: RuleEntry) -> Confirmation {
         Confirmation(
             citation: entry.origin.quote,
-            exceptions: "Not applicable",
-            preparation: "Not applicable",
             sourceSection: entry.origin.section.isEmpty ? nil : entry.origin.section
         )
     }
