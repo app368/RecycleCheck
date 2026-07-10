@@ -156,6 +156,8 @@ struct ResultView: View {
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(.secondary.opacity(0.2), lineWidth: 1)
                 )
+                // Тап открывает фото на весь экран с зумом
+                .zoomablePhoto(image)
         }
     }
     

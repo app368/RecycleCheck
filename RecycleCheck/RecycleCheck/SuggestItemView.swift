@@ -128,6 +128,8 @@ struct SuggestItemView: View {
                     .scaledToFill()
                     .frame(width: 80, height: 80)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
+                    // Тап открывает фото на весь экран с зумом
+                    .zoomablePhoto(image)
             }
             
             // Описание предмета

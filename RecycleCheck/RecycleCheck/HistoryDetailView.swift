@@ -57,6 +57,8 @@ struct HistoryDetailView: View {
                     .resizable()
                     .scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                    // Тап открывает фото на весь экран с зумом
+                    .zoomablePhoto(image)
             } else {
                 // Заглушка, если фото нет
                 RoundedRectangle(cornerRadius: 12)
