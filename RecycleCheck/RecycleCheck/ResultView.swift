@@ -322,8 +322,6 @@ struct ResultView: View {
                 sourceURL: "https://example-recycling-site.com",
                 confirmation: Confirmation(
                     citation: "Plastic bottles and jars with a neck",
-                    exceptions: "must be 2 inches by 2 inches or larger",
-                    preparation: "Rinse. Caps are OK if screwed on.",
                     sourceSection: "Allowed plastic items"
                 )
             )
@@ -340,8 +338,6 @@ struct ResultView: View {
                 sourceURL: "https://example-recycling-site.com",
                 confirmation: Confirmation(
                     citation: "NO drinking glasses, dishware, or drinkware of any kind.",
-                    exceptions: "Not applicable",
-                    preparation: "Not applicable",
                     sourceSection: "What’s NOT allowed"
                 )
             )
