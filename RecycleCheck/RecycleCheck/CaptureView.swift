@@ -161,6 +161,9 @@ struct CaptureView: View {
                     .scaledToFit()
                     .frame(maxHeight: 260)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                    // Тап открывает фото на весь экран с зумом.
+                    // Подключено до оверлеев — кнопка смены фото сверху остаётся рабочей
+                    .zoomablePhoto(image)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(.secondary.opacity(0.3), lineWidth: 1)
