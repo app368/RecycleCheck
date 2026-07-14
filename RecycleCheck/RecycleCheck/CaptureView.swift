@@ -63,9 +63,10 @@ struct CaptureView: View {
     
     var body: some View {
         ScrollView {
-            // Отступ 14: карточка с полями и кнопка проверки должны
-            // помещаться на экране вместе с фото
-            VStack(spacing: 14) {
+            // До распознавания элементов мало — им свободнее (24);
+            // с карточкой описания — плотнее (14), чтобы кнопка проверки
+            // помещалась на экране вместе с фото
+            VStack(spacing: recognition == nil ? 24 : 14) {
 
                 // MARK: - Область фотографии
 
@@ -230,8 +231,8 @@ struct CaptureView: View {
                 Label("Camera", systemImage: "camera")
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(accent.opacity(0.12))
-                    .foregroundStyle(accent)
+                    .background(accent)
+                    .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
@@ -242,8 +243,8 @@ struct CaptureView: View {
                 Label("Gallery", systemImage: "photo.on.rectangle")
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(accent.opacity(0.12))
-                    .foregroundStyle(accent)
+                    .background(accent)
+                    .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
         }
