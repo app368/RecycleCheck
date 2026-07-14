@@ -73,15 +73,19 @@ struct CaptureView: View {
                 photoSection
                 
                 // MARK: - Кнопки выбора источника фото (до распознавания)
-                
+
                 if recognition == nil && !isRecognizing {
                     sourceButtons
+                        // Дополнительный воздух между фото и кнопками источника
+                        .padding(.top, 12)
                 }
-                
+
                 // MARK: - Кнопка распознавания (Шаг 1)
-                
+
                 if capturedImage != nil && recognition == nil && !isRecognizing {
                     recognizeButton
+                        // Вдвое больше обычного отступа от кнопок Camera/Gallery
+                        .padding(.top, 24)
                 }
                 
                 // MARK: - Индикатор распознавания
@@ -180,7 +184,9 @@ struct CaptureView: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
-                    .frame(maxHeight: 180)
+                    // До распознавания места много — фото крупнее;
+                    // с карточкой описания — компактнее
+                    .frame(maxHeight: recognition == nil ? 300 : 180)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     // Тап открывает фото на весь экран с зумом.
                     // Подключено до оверлеев — кнопка смены фото сверху остаётся рабочей
