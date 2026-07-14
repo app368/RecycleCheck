@@ -33,45 +33,45 @@ struct ResultView: View {
     private let storage = StorageService.shared
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 14) {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 14) {
 
-                // MARK: - Название предмета (первым)
+                    // MARK: - Название предмета (первым)
 
-                Text(item.displayName)
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .multilineTextAlignment(.center)
-                    // Долгое нажатие — системное меню: Copy / Translate / Share
-                    .textSelection(.enabled)
+                    Text(item.displayName)
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .multilineTextAlignment(.center)
+                        // Долгое нажатие — системное меню: Copy / Translate / Share
+                        .textSelection(.enabled)
 
-                // MARK: - Фото предмета
+                    // MARK: - Фото предмета
 
-                itemPhoto
+                    itemPhoto
 
-                // MARK: - Строка результата (текст + маленькая иконка, в цвете)
+                    // MARK: - Строка результата (текст + маленькая иконка, в цвете)
 
-                resultLine
+                    resultLine
 
-                // MARK: - Подтверждение вердикта (для да/нет)
+                    // MARK: - Подтверждение вердикта (для да/нет)
 
-                confirmationSection
+                    confirmationSection
 
-                // MARK: - Пояснение для исхода «неясно»
+                    // MARK: - Пояснение для исхода «неясно»
 
-                unclearSection
+                    unclearSection
+                }
+                .padding()
             }
-            .padding()
-        }
-        .navigationTitle("Result")
-        .navigationBarTitleDisplayMode(.inline)
 
-        // MARK: - Кнопки действий — прицеплены к нижней границе экрана
-        // (контент прокручивается над ними, кнопки видны всегда)
+            // MARK: - Кнопки действий — у нижней границы экрана
 
-        .safeAreaInset(edge: .bottom) {
             actionsSection
         }
+        .navigationTitle("Result")
+        // Крупный заголовок страницы — как на экране «Check an item»
+        .navigationBarTitleDisplayMode(.large)
 
         // MARK: - «Done» в правом верхнем углу — возврат на главный экран
 
@@ -84,10 +84,10 @@ struct ResultView: View {
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.white)
-                        // Немного вытянута по ширине
+                        // Немного вытянута по ширине; цвет — в тон вердикта страницы
                         .padding(.horizontal, 20)
                         .padding(.vertical, 6)
-                        .background(.blue)
+                        .background(statusColor)
                         .clipShape(Capsule())
                 }
                 // Убираем стандартную подложку кнопки навбара —
@@ -131,9 +131,10 @@ struct ResultView: View {
         } icon: {
             Image(systemName: statusSystemImage)
         }
-        .font(.headline)
+        .font(.title3)
+        .fontWeight(.bold)
         .foregroundStyle(statusColor)
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 22)
         .padding(.vertical, 10)
         .background(statusColor.opacity(0.12))
         .clipShape(Capsule())
@@ -149,7 +150,7 @@ struct ResultView: View {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFit()
-                .frame(maxHeight: 130)
+                .frame(maxHeight: 180)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
@@ -167,7 +168,7 @@ struct ResultView: View {
     @ViewBuilder
     private var confirmationSection: some View {
         if let confirmation = result.confirmation {
-            ConfirmationSectionView(state: .loaded(confirmation))
+            ConfirmationSectionView(state: .loaded(confirmation), tint: statusColor)
         }
     }
 

@@ -125,9 +125,9 @@ struct HistoryDetailView: View {
         // Для notFound подтверждения не бывает — секцию не показываем
         if let result = entry.result, result.status != .notFound {
             if let confirmation = result.confirmation {
-                ConfirmationSectionView(state: .loaded(confirmation))
+                ConfirmationSectionView(state: .loaded(confirmation), tint: statusColor)
             } else {
-                ConfirmationSectionView(state: .unavailable)
+                ConfirmationSectionView(state: .unavailable, tint: statusColor)
             }
         }
 
