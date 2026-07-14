@@ -60,19 +60,18 @@ struct ResultView: View {
                 // MARK: - Пояснение для исхода «неясно»
 
                 unclearSection
-
-                // MARK: - Ссылка на источник (страница подтверждающего пункта)
-
-                sourceLink
-
-                // MARK: - Кнопки действий
-
-                actionsSection
             }
             .padding()
         }
         .navigationTitle("Result")
         .navigationBarTitleDisplayMode(.inline)
+
+        // MARK: - Кнопки действий — прицеплены к нижней границе экрана
+        // (контент прокручивается над ними, кнопки видны всегда)
+
+        .safeAreaInset(edge: .bottom) {
+            actionsSection
+        }
 
         // MARK: - «Done» в правом верхнем углу — возврат на главный экран
 
@@ -218,7 +217,7 @@ struct ResultView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    // MARK: - Кнопка «Source» — ссылка спрятана под неё
+    // MARK: - Ссылки на сайт
 
     /// URL страницы подтверждающего пункта (если строка корректна)
     private var sourcePageURL: URL? {
@@ -226,48 +225,37 @@ struct ResultView: View {
         return URL(string: urlString)
     }
 
-    /// URL сайта переработки — для кнопки «Open website» при исходе «неясно»
+    /// URL сайта переработки (главная) — для «неясно» и как запасной вариант
     private var websiteURL: URL? {
         URL(string: AppConfig.recyclingWebsiteURL)
     }
 
-    @ViewBuilder
-    private var sourceLink: some View {
-        if sourcePageURL != nil {
-            Button {
-                showSourcePage = true
-            } label: {
-                Label("Source", systemImage: "safari")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(statusColor.opacity(0.12))
-                    .foregroundStyle(statusColor)
-                    .clipShape(Capsule())
-            }
-        }
-    }
+    // MARK: - Кнопки действий (на всех исходах; «Done» — в навбаре)
+    // Запрос по email + переход на сайт, в цвете вердикта, у нижней границы
+    // экрана на подложке-материале (контент прокручивается под ними).
+    // Для да/нет — «Open source page» (конкретная страница пункта);
+    // для «неясно» или без ссылки — «Open website» (главная сайта)
 
-    // MARK: - Кнопки действий (только для «неясно»; «Done» — в навбаре)
-    // Два пути уточнения: запрос по email и открыть сайт. Оба в одном стиле,
-    // в цвете вердикта
-
-    @ViewBuilder
     private var actionsSection: some View {
-        if result.status == .notFound {
-            VStack(spacing: 10) {
-                actionButton(title: "Send a request by email", icon: "envelope.fill") {
-                    showEmailComposer = true
-                }
+        VStack(spacing: 10) {
+            actionButton(title: "Send a request by email", icon: "envelope.fill") {
+                showEmailComposer = true
+            }
 
+            if result.status != .notFound, sourcePageURL != nil {
+                actionButton(title: "Open source page", icon: "safari") {
+                    showSourcePage = true
+                }
+            } else {
                 actionButton(title: "Open website", icon: "safari") {
                     showWebsite = true
                 }
                 .disabled(websiteURL == nil)
             }
-            .padding(.top, 4)
         }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial)
     }
 
     /// Кнопка действия в едином стиле: заливка цветом вердикта, белый текст
