@@ -6,6 +6,8 @@ import UIKit
 // экран результата, детали истории, превью письма, экран съёмки.
 // Тап по миниатюре открывает фото на весь экран с щипковым зумом,
 // панорамой и двойным тапом — родное поведение через UIScrollView.
+// Появление — родной зум-переход (iOS 18+): окно визуально вырастает
+// из миниатюры и сворачивается обратно, а не выезжает снизу.
 //
 // Подключение: к любой вьюхе-миниатюре добавить `.zoomablePhoto(uiImage)`.
 
@@ -24,6 +26,13 @@ private struct ZoomablePhotoModifier: ViewModifier {
 
     @State private var showViewer = false
 
+    /// Пространство имён зум-перехода: связывает миниатюру-источник
+    /// и полноэкранное окно, чтобы система анимировала одно в другое
+    @Namespace private var zoomNamespace
+
+    /// Идентификатор источника перехода внутри пространства имён
+    private static let sourceID = "photo"
+
     func body(content: Content) -> some View {
         content
             // Вся область миниатюры реагирует на тап
@@ -31,9 +40,13 @@ private struct ZoomablePhotoModifier: ViewModifier {
             .onTapGesture {
                 if image != nil { showViewer = true }
             }
+            // Миниатюра — источник зум-перехода: из неё окно вырастает
+            .matchedTransitionSource(id: Self.sourceID, in: zoomNamespace)
             .fullScreenCover(isPresented: $showViewer) {
                 if let image {
                     FullScreenPhotoViewer(image: image)
+                        // Появление увеличением из миниатюры, а не выездом снизу
+                        .navigationTransition(.zoom(sourceID: Self.sourceID, in: zoomNamespace))
                 }
             }
     }
