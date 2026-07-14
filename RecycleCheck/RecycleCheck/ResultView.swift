@@ -278,17 +278,9 @@ struct ResultView: View {
     
     // MARK: - Вспомогательные свойства для стилизации по статусу
 
-    /// Цвет, соответствующий статусу вердикта:
-    /// да — зелёный, нет — красный, неясно — синий
+    /// Цвет, соответствующий статусу вердикта (единый тон из модели)
     private var statusColor: Color {
-        switch result.status {
-        case .recyclable:
-            return .green
-        case .notRecyclable:
-            return .red
-        case .notFound:
-            return .blue
-        }
+        result.status.color
     }
 
     /// SF Symbol, соответствующий статусу вердикта

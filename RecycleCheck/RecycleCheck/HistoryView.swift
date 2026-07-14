@@ -243,19 +243,12 @@ struct HistoryRowView: View {
     
     /// Текст статуса
     private var statusText: String {
-        entry.result?.status.rawValue ?? "Not checked"
+        entry.result?.status.displayText ?? "Not checked"
     }
-    
-    /// Цвет статуса
+
+    /// Цвет статуса (единый тон из модели)
     private var statusColor: Color {
-        switch entry.result?.status {
-        case .recyclable:
-            return .green
-        case .notRecyclable:
-            return .red
-        case .notFound, .none:
-            return .orange
-        }
+        entry.result?.status.color ?? .blue
     }
 }
 

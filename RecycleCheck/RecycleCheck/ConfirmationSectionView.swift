@@ -93,13 +93,13 @@ struct ConfirmationSectionView: View {
                         TranslateButton(text: confirmation.citation, tint: tint)
                     }
                 }
-                Text("Citation from list:")
+                Text("Citation from list")
                     .font(.subheadline)
             }
 
             // Название секции сайта — по центру, курсив + bold, в цвете вердикта
             if let section = confirmation.sourceSection {
-                Text(section)
+                Text("\(section):")
                     .font(.subheadline)
                     .fontWeight(.bold)
                     .italic()

@@ -211,14 +211,7 @@ struct HistoryDetailView: View {
     }
     
     private var statusColor: Color {
-        switch entry.result?.status {
-        case .recyclable:
-            return .green
-        case .notRecyclable:
-            return .red
-        case .notFound, .none:
-            return .orange
-        }
+        entry.result?.status.color ?? .blue
     }
 }
 
