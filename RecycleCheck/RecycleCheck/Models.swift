@@ -193,6 +193,20 @@ enum RecycleStatus: String, Codable {
             return "Couldn't determine"
         }
     }
+
+    /// Цвет статуса — единый для всех экранов:
+    /// да — зелёный; нет — приглушённый розово-терракотовый
+    /// (яркий красный кричал); неясно — синий
+    var color: Color {
+        switch self {
+        case .recyclable:
+            return .green
+        case .notRecyclable:
+            return Color(red: 0.78, green: 0.45, blue: 0.47)
+        case .notFound:
+            return .blue
+        }
+    }
 }
 
 /// Результат поиска предмета на сайте
