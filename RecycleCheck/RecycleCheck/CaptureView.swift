@@ -52,16 +52,23 @@ struct CaptureView: View {
     }
     
     @Environment(\.dismiss) private var dismiss
-    
+
+    /// Акцентный цвет экрана распознавания — сиреневый: ассоциация с ИИ
+    /// (Siri, Apple Intelligence). Все кнопки экрана — в нём; зелёный,
+    /// красный и синий заняты экранами результата
+    private let accent = Color(red: 0.62, green: 0.46, blue: 0.86)
+
     private let storage = StorageService.shared
     private let visionService = VisionService.shared
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                
+            // Отступ 14: карточка с полями и кнопка проверки должны
+            // помещаться на экране вместе с фото
+            VStack(spacing: 14) {
+
                 // MARK: - Область фотографии
-                
+
                 photoSection
                 
                 // MARK: - Кнопки выбора источника фото (до распознавания)
@@ -108,12 +115,25 @@ struct CaptureView: View {
                 }
             }
             
-            // Кнопка сброса — позволяет начать заново
+            // Кнопка сброса — позволяет начать заново.
+            // Сиреневая капсула с белым текстом (как Done на экране результата)
             if recognition != nil || capturedImage != nil {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Reset") {
+                    Button {
                         resetAll()
+                    } label: {
+                        Text("Reset")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 6)
+                            .background(accent)
+                            .clipShape(Capsule())
                     }
+                    // Без стандартной подложки навбара — иначе капсула
+                    // сидит внутри белого фона
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -159,7 +179,7 @@ struct CaptureView: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
-                    .frame(maxHeight: 260)
+                    .frame(maxHeight: 180)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     // Тап открывает фото на весь экран с зумом.
                     // Подключено до оверлеев — кнопка смены фото сверху остаётся рабочей
@@ -210,20 +230,20 @@ struct CaptureView: View {
                 Label("Camera", systemImage: "camera")
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(.green.opacity(0.1))
-                    .foregroundStyle(.green)
+                    .background(accent.opacity(0.12))
+                    .foregroundStyle(accent)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
-            
+
             Button {
                 showPhotoLibrary = true
             } label: {
                 Label("Gallery", systemImage: "photo.on.rectangle")
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(.blue.opacity(0.1))
-                    .foregroundStyle(.blue)
+                    .background(accent.opacity(0.12))
+                    .foregroundStyle(accent)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
         }
@@ -242,7 +262,7 @@ struct CaptureView: View {
             .font(.headline)
             .frame(maxWidth: .infinity)
             .padding()
-            .background(.green)
+            .background(accent)
             .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
@@ -253,7 +273,7 @@ struct CaptureView: View {
     private var recognizingIndicator: some View {
         HStack(spacing: 8) {
             ProgressView()
-                .tint(.green)
+                .tint(accent)
             Text("Recognizing...")
                 .font(.headline)
                 .foregroundStyle(.secondary)
@@ -267,64 +287,71 @@ struct CaptureView: View {
     // MARK: - Карточка распознавания для category == .item (редактируемая)
     
     private var recognitionCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Заголовок карточки
+        VStack(alignment: .leading, spacing: 12) {
+            // Подсказка о редактировании — по центру, заметная.
+            // Заголовок «Item recognized» убран: заполненное описание
+            // само говорит о распознавании
+            Text("You can edit this description")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .frame(maxWidth: .infinity, alignment: .center)
+
+            // Пояснение про запятые — обычным шрифтом, по левому краю,
+            // с отступом от строки выше
+            Text("Separate multiple values with commas.")
+                .font(.subheadline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 8)
+
+            // Retake — под подсказкой, в правом углу:
+            // фото остаётся, распознавание описания повторяется
             HStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Item recognized")
-                    .font(.headline)
                 Spacer()
                 Button {
                     recognition = nil
                 } label: {
                     Text("Retake")
-                        .font(.caption)
-                        .foregroundStyle(.blue)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
+                        .background(accent)
+                        .clipShape(Capsule())
                 }
             }
-            
-            Text("Review and edit if needed:")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            
+
             // Поле: Материал
             VStack(alignment: .leading, spacing: 4) {
                 Text("Material type")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fontWeight(.medium)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
                 TextField("e.g. plastic, glass, metal...", text: $editMaterial)
                     .textFieldStyle(.roundedBorder)
                     .autocapitalization(.none)
                     .focused($focusedField, equals: .material)
             }
-            
+
             // Поле: Название предмета
             VStack(alignment: .leading, spacing: 4) {
                 Text("Item name")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fontWeight(.medium)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
                 TextField("e.g. bottle, container, bag...", text: $editItemType)
                     .textFieldStyle(.roundedBorder)
                     .autocapitalization(.none)
                     .focused($focusedField, equals: .itemType)
             }
-            
+
             // Поле: Содержимое / назначение
             VStack(alignment: .leading, spacing: 4) {
                 Text("Contents / Intended use")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fontWeight(.medium)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
                 TextField("e.g. beverage, food, dairy, cleaning...", text: $editContentsUse)
                     .textFieldStyle(.roundedBorder)
                     .autocapitalization(.none)
                     .focused($focusedField, equals: .contentsUse)
-                Text("Separate with commas")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
             }
         }
         .padding()
@@ -403,16 +430,16 @@ struct CaptureView: View {
                 if isSearching {
                     ProgressView()
                         .tint(.white)
-                    Text("Searching website...")
+                    Text("Checking website…")
                 } else {
                     Image(systemName: "magnifyingglass")
-                    Text("Search")
+                    Text("Check for recycling")
                 }
             }
             .font(.headline)
             .frame(maxWidth: .infinity)
             .padding()
-            .background(canSearch && !isSearching ? .green : .gray)
+            .background(canSearch && !isSearching ? accent : .gray)
             .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
