@@ -190,7 +190,7 @@ enum RecycleStatus: String, Codable {
         case .notRecyclable:
             return "Not recyclable"
         case .notFound:
-            return "Couldn't determine"
+            return "Not listed on website"
         }
     }
 
