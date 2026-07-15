@@ -86,10 +86,11 @@ struct ResultView: View {
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.white)
-                        // Немного вытянута по ширине; цвет — в тон вердикта страницы
+                        // Немного вытянута по ширине; цвет — в тон вердикта страницы,
+                        // насыщенность снижена (см. buttonFillColor)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 6)
-                        .background(statusColor)
+                        .background(buttonFillColor)
                         .clipShape(Capsule())
                 }
                 // Убираем стандартную подложку кнопки навбара —
@@ -263,7 +264,8 @@ struct ResultView: View {
         .background(.ultraThinMaterial)
     }
 
-    /// Кнопка действия в едином стиле: заливка цветом вердикта, белый текст
+    /// Кнопка действия в едином стиле: заливка цветом вердикта
+    /// (насыщенность снижена, см. buttonFillColor), белый текст
     private func actionButton(
         title: String,
         icon: String,
@@ -274,13 +276,20 @@ struct ResultView: View {
                 .font(.headline)
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(statusColor)
+                .background(buttonFillColor)
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
         }
     }
-    
+
     // MARK: - Вспомогательные свойства для стилизации по статусу
+
+    /// Заливка трёх кнопок экрана (Done + две нижние): сплошной цвет
+    /// вердикта — сниженная opacity гасила и белый текст, поэтому
+    /// смягчение цвета делается в самом statusColor (RecycleStatus.color)
+    private var buttonFillColor: Color {
+        statusColor
+    }
 
     /// Цвет, соответствующий статусу вердикта (единый тон из модели)
     private var statusColor: Color {
