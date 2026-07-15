@@ -9,12 +9,14 @@ enum AppConfig {
     
     // MARK: - Значения по умолчанию
     
-    /// URL сайта по умолчанию — общенациональный гид EPA по переработке.
-    /// Пользователь может заменить на сайт своего штата/города в Settings
-    static let defaultWebsiteURL = "https://www.epa.gov/recycle"
-    
-    /// Email по умолчанию
-    static let defaultRequestEmail = "info@example-recycling-site.com"
+    /// URL сайта по умолчанию — Portland, единственный сайт-источник проекта.
+    /// Поле остаётся редактируемым в Settings
+    static let defaultWebsiteURL = "https://www.portland.gov/bps/garbage-recycling/recycling"
+
+    /// Email по умолчанию — контактный адрес Portland (Garbage and Recycling
+    /// Hotline, wasteinfo@portlandoregon.gov, со страницы «Ask a question»).
+    /// Поле остаётся редактируемым в Settings
+    static let defaultRequestEmail = "wasteinfo@portlandoregon.gov"
     
     // MARK: - Актуальные значения (из Settings или значения по умолчанию)
     

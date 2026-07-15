@@ -28,7 +28,7 @@ struct SettingsView: View {
     }
     
     private let storage = StorageService.shared
-    
+
     var body: some View {
         Form {
             // MARK: - Секция сайта переработки
@@ -41,7 +41,7 @@ struct SettingsView: View {
                         .autocorrectionDisabled()
                         .focused($focusedField, equals: .url)
                         .lineLimit(3...5)
-                    
+
                     // Кнопка очистки поля
                     if !websiteURL.isEmpty {
                         Button {
@@ -53,12 +53,23 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                     }
                 }
+                // Лёгкая зелёная заливка поля
+                .listRowBackground(Color.green.opacity(0.08))
             } header: {
                 Text("Source recycling website URL")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.primary)
+                    .textCase(nil)
             } footer: {
-                Text("The website where the app searches for recyclable items. By default it uses the U.S. EPA recycling guide. You can replace it with your state or local recycling program website for local rules.")
+                Text("The website where the app searches for recyclable items. You can replace it with your state or local recycling program website for local rules.")
+                    .font(.subheadline)
+                    .italic()
+                    .padding(8)
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            
+
             // MARK: - Секция email
             Section {
                 HStack(alignment: .top) {
@@ -69,7 +80,7 @@ struct SettingsView: View {
                         .autocorrectionDisabled()
                         .focused($focusedField, equals: .email)
                         .lineLimit(2...4)
-                    
+
                     // Кнопка очистки поля
                     if !requestEmail.isEmpty {
                         Button {
@@ -81,10 +92,21 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                     }
                 }
+                // Лёгкая зелёная заливка поля
+                .listRowBackground(Color.green.opacity(0.08))
             } header: {
-                Text("Email for messages to the source website")
+                Text("Email address of the source website")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.primary)
+                    .textCase(nil)
             } footer: {
-                Text("Here you can specify the email address for submitting items not found on the website.")
+                Text("Enter the email address of the source website's team here. You can use it to ask a question about a specific item.")
+                    .font(.subheadline)
+                    .italic()
+                    .padding(8)
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             
             // MARK: - Секция обнаружения страниц: статус кэша + Refresh
@@ -92,20 +114,23 @@ struct SettingsView: View {
             if !websiteURL.isEmpty {
                 Section {
                     if isDiscovering {
-                        // Индикатор прогресса обнаружения — заметный, синий
+                        // Индикатор прогресса обнаружения — заметный, зелёный
+                        // (в тон кнопкам Save/Refresh на этом экране)
                         HStack(spacing: 12) {
                             ProgressView()
                                 .controlSize(.large)
-                                .tint(.blue)
-                            Text("Reading website rules...")
+                                .tint(.green)
+                            Text("Reading recycling info...")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(.green)
                         }
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 4)
                     } else if let result = discoveryResult {
-                        // Состояние кэша: количество страниц и дата сборки
+                        // Дата последнего получения данных — лёгкая зелёная заливка
+                        // самой строки списка (как у текстовых полей), без
+                        // вложенной формы поверх карточки секции
                         HStack(spacing: 8) {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
@@ -113,8 +138,9 @@ struct SettingsView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
+                        .listRowBackground(Color.green.opacity(0.08))
                     } else {
-                        Text("No pages discovered yet")
+                        Text("No data yet")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -123,13 +149,14 @@ struct SettingsView: View {
                     Button {
                         startDiscovery(for: AppConfig.recyclingWebsiteURL)
                     } label: {
+                        // Яркая зелёная заливка — как кнопка Save
                         Label("Refresh source pages", systemImage: "arrow.clockwise")
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
-                            .background(.blue.opacity(0.1))
-                            .foregroundStyle(.blue)
+                            .background(.green)
+                            .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
                     .buttonStyle(.plain)
@@ -137,9 +164,18 @@ struct SettingsView: View {
                     .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                     .disabled(isDiscovering)
                 } header: {
-                    Text("Website rules")
+                    Text("Recycling data freshness")
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.primary)
+                        .textCase(nil)
                 } footer: {
-                    Text("Rebuilds the recycling rules from the website pages — refresh if the website content has changed. This may take a few minutes.")
+                    Text("Refresh if the website content has changed. This may take a few minutes.")
+                        .font(.subheadline)
+                        .italic()
+                        .padding(8)
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
 
@@ -227,16 +263,15 @@ struct SettingsView: View {
         updateDiscoveryStatus()
     }
 
-    // MARK: - Статус базы правил / кэша целевых страниц
+    // MARK: - Статус данных о переработке
+    // Пользователю важна только дата сбора (свежесть данных),
+    // не количество страниц/правил — это деталь под капотом
 
-    /// Собирает строку состояния: приоритет — база правил
-    /// («6 pages · 150 rules · updated Jul 8, 2026»), пока базы нет —
-    /// прежний статус кэша целевых URL («6 pages found · updated Jul 7, 2026»)
+    /// Собирает строку статуса: дата последнего сбора данных
     private func updateDiscoveryStatus() {
         // База правил (списочная архитектура)
         if let rules = storage.loadSiteRules(forBaseURL: AppConfig.recyclingWebsiteURL) {
-            discoveryResult = rules.summary
-                + " · updated \(rules.builtAt.formatted(date: .abbreviated, time: .omitted))"
+            discoveryResult = "The app fetched this data from the source website on \(rules.builtAt.formatted(date: .abbreviated, time: .omitted))"
             return
         }
 
@@ -246,11 +281,11 @@ struct SettingsView: View {
             discoveryResult = nil
             return
         }
-        var status = "\(cached.count) pages found"
         if let date = storage.targetURLsCacheDate() {
-            status += " · updated \(date.formatted(date: .abbreviated, time: .omitted))"
+            discoveryResult = "The app fetched this data from the source website on \(date.formatted(date: .abbreviated, time: .omitted))"
+        } else {
+            discoveryResult = nil
         }
-        discoveryResult = status
     }
     
     // MARK: - Сохранение настроек
