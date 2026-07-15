@@ -35,7 +35,9 @@ struct ResultView: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(spacing: 14) {
+                // На «неясно» отступы плотнее — две секции должны
+                // помещаться над кнопками
+                VStack(spacing: result.status == .notFound ? 10 : 14) {
 
                     // MARK: - Название предмета (первым)
 
@@ -150,7 +152,9 @@ struct ResultView: View {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFit()
-                .frame(maxHeight: 180)
+                // На «неясно» контента больше (две секции) — фото компактнее,
+                // чтобы обе секции помещались над кнопками
+                .frame(maxHeight: result.status == .notFound ? 140 : 180)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
@@ -182,7 +186,7 @@ struct ResultView: View {
                 unclearCard(
                     title: "What does this mean",
                     icon: "questionmark.circle.fill",
-                    text: "The app couldn't determine whether this item is recyclable from the website's lists."
+                    text: "The website's lists — Allowed and Not allowed for recycling — don't mention this item."
                 )
                 unclearCard(
                     title: "What you can do",
