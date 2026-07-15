@@ -186,12 +186,12 @@ struct ResultView: View {
                 unclearCard(
                     title: "What does this mean",
                     icon: "questionmark.circle.fill",
-                    text: "The website's lists — Allowed and Not allowed for recycling — don't mention this item."
+                    text: "The name of this item is not in the \"Allowed\" and \"Not Allowed\" recycling lists on the source website."
                 )
                 unclearCard(
-                    title: "What you can do",
+                    title: "What you can do in this case",
                     icon: "lightbulb.fill",
-                    text: "To find out, you can send a request to the website's team or open the website and check it yourself."
+                    text: "You can send a question to the website's team by email or visit the website and check it yourself."
                 )
             }
         }
@@ -239,11 +239,11 @@ struct ResultView: View {
     // Запрос по email + переход на сайт, в цвете вердикта, у нижней границы
     // экрана на подложке-материале (контент прокручивается под ними).
     // Для да/нет — «Open source page» (конкретная страница пункта);
-    // для «неясно» или без ссылки — «Open website» (главная сайта)
+    // для «неясно» или без ссылки — «Visit website» (главная сайта)
 
     private var actionsSection: some View {
         VStack(spacing: 10) {
-            actionButton(title: "Send a request by email", icon: "envelope.fill") {
+            actionButton(title: "Send a question by email", icon: "envelope.fill") {
                 showEmailComposer = true
             }
 
@@ -252,7 +252,7 @@ struct ResultView: View {
                     showSourcePage = true
                 }
             } else {
-                actionButton(title: "Open website", icon: "safari") {
+                actionButton(title: "Visit website", icon: "safari") {
                     showWebsite = true
                 }
                 .disabled(websiteURL == nil)
