@@ -30,9 +30,6 @@ enum AppConfig {
         return (saved?.isEmpty == false) ? saved! : defaultRequestEmail
     }
     
-    /// Тема письма по умолчанию
-    static let emailSubject = "Request to add an item to the recycling database"
-    
     // MARK: - AI Vision API
     
     /// Ключ для доступа к сервису распознавания изображений.

@@ -1,8 +1,10 @@
 import SwiftUI
 
-// MARK: - Экран предложения добавить предмет (СП5)
-// Пользователь может отправить email с просьбой добавить предмет
-// в базу переработки на сайте. В письмо вкладываются:
+// MARK: - Экран вопроса команде сайта (СП5)
+// Приложение не нашло предмет в списках сайта — пользователь может
+// вежливо СПРОСИТЬ команду сайта, пригоден ли предмет к переработке
+// (не предложить добавить его — решение остаётся за сайтом).
+// В письмо вкладываются:
 // — фото предмета
 // — описание (опционально, может дополнить пользователь)
 // — обратный email пользователя (из профиля СП6, если заполнен)
@@ -11,9 +13,9 @@ struct SuggestItemView: View {
     
     /// Предмет, который не найден на сайте
     let item: RecycleItem
-    
-    /// Дополнительный комментарий от пользователя
-    @State private var userComment: String = ""
+
+    /// Текст письма — заготовка, пользователь может отредактировать
+    @State private var emailBody: String = ""
     
     /// Управление показом почтового клиента
     @State private var showMailComposer = false
@@ -31,33 +33,34 @@ struct SuggestItemView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                
-                // MARK: - Заголовок и пояснение
-                
-                headerSection
-                
-                // MARK: - Превью предмета
-                
+            VStack(spacing: 20) {
+
+                // MARK: - Превью предмета (фото + описание, сразу первым блоком)
+
                 itemPreview
-                
-                // MARK: - Комментарий пользователя
-                
-                commentSection
-                
+
+                // MARK: - Текст письма (редактируемый, с готовой заготовкой)
+
+                emailBodySection
+
                 // MARK: - Информация об отправке
-                
+
                 emailInfoSection
-                
+
                 // MARK: - Кнопки действий
-                
+
                 actionsSection
             }
             .padding()
         }
-        .navigationTitle("Suggest item")
+        .navigationTitle("Question about")
         .navigationBarTitleDisplayMode(.large)
         .scrollDismissesKeyboard(.interactively)
+        .onAppear {
+            if emailBody.isEmpty {
+                emailBody = defaultEmailBody()
+            }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -72,8 +75,8 @@ struct SuggestItemView: View {
         .sheet(isPresented: $showMailComposer) {
             MailComposer(
                 recipient: AppConfig.requestEmail,
-                subject: AppConfig.emailSubject,
-                body: buildEmailBody(),
+                subject: "Recycling question: \(item.displayName)",
+                body: emailBody,
                 attachments: buildAttachments(),
                 onFinished: { success in
                     emailSent = success
@@ -92,28 +95,9 @@ struct SuggestItemView: View {
             }
         } message: {
             Text(emailSent
-                 ? "Your suggestion has been sent. Thank you!"
+                 ? "Your question has been sent. Thank you!"
                  : "The email was not sent. You can try again.")
         }
-    }
-    
-    // MARK: - Заголовок
-    
-    private var headerSection: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "envelope.badge.fill")
-                .font(.system(size: 44))
-                .foregroundStyle(.blue)
-            
-            Text("Item not found in the database")
-                .font(.headline)
-            
-            Text("You can suggest adding this item to the recycling database. We'll send a photo and description to the website team.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.top, 8)
     }
     
     // MARK: - Превью предмета (фото + название)
@@ -153,22 +137,27 @@ struct SuggestItemView: View {
             Spacer()
         }
         .padding()
-        .background(.gray.opacity(0.08))
+        // Синий фон — экран «неясно»/уточнение, тот же тон по приложению
+        .background(.blue.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
-    
-    // MARK: - Дополнительный комментарий
-    
-    private var commentSection: some View {
+
+    // MARK: - Текст письма (редактируемый, с готовой заготовкой)
+
+    private var emailBodySection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Additional comment (optional)")
+            Text("Email text (you can edit it)")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
-            
-            TextField("e.g. I found this item at a grocery store...", text: $userComment, axis: .vertical)
-                .lineLimit(3...6)
-                .textFieldStyle(.roundedBorder)
+                .fontWeight(.semibold)
+
+            TextField("", text: $emailBody, axis: .vertical)
+                .lineLimit(10...20)
+                .textFieldStyle(.plain)
                 .focused($isCommentFocused)
+                .padding(10)
+                // Лёгкий синий фон — тон «неясно»/уточнение по приложению
+                .background(.blue.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
         }
     }
     
@@ -218,7 +207,7 @@ struct SuggestItemView: View {
             Button {
                 showMailComposer = true
             } label: {
-                Label("Send suggestion", systemImage: "paperplane.fill")
+                Label("Send question", systemImage: "paperplane.fill")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
@@ -252,49 +241,30 @@ struct SuggestItemView: View {
         .padding(.top, 8)
     }
     
-    // MARK: - Формирование текста письма
-    
-    /// Собираем тело email из описания предмета, комментария и данных пользователя.
-    private func buildEmailBody() -> String {
+    // MARK: - Заготовка текста письма
+
+    /// Готовый текст письма — вежливый вопрос команде сайта, не предложение
+    /// добавить предмет. Пользователь может отредактировать перед отправкой.
+    /// Подпись — имя из профиля (СП6), если заполнено
+    private func defaultEmailBody() -> String {
         let profile = storage.loadProfile()
-        
-        var body = "Hello,\n\n"
-        body += "I would like to suggest adding the following item to the recycling database.\n\n"
-        
-        // Описание предмета
-        body += "Item: \(item.displayName)\n"
-        
-        if let aiDesc = item.aiDescription {
-            body += "AI recognition: \(aiDesc)\n"
-        }
-        
-        if let userDesc = item.userDescription {
-            body += "User description: \(userDesc)\n"
-        }
-        
-        // Комментарий пользователя
-        if !userComment.isEmpty {
-            body += "\nAdditional comment: \(userComment)\n"
-        }
-        
-        // Данные пользователя для обратной связи
-        body += "\n---\n"
-        
-        if let name = profile.name, !name.isEmpty {
-            body += "Name: \(name)\n"
-        }
-        
-        if let email = profile.email, !email.isEmpty {
-            body += "Email: \(email)\n"
-        }
-        
-        if let phone = profile.phone, !phone.isEmpty {
-            body += "Phone: \(phone)\n"
-        }
-        
-        body += "\nSent from RecycleCheck app"
-        
-        return body
+        let name = profile.name?.isEmpty == false ? profile.name! : "[Name]"
+
+        return """
+        Hello,
+
+        My app didn't find information about this item in the "Allowed" and \
+        "Not Allowed" recycling lists on your website.
+
+        Could you let me know whether this item is recyclable? If there are \
+        any exceptions or preparation steps, that would be very helpful too.
+
+        I'm attaching a photo of the item and a short description generated \
+        by the app.
+
+        Thank you for your time,
+        \(name)
+        """
     }
     
     // MARK: - Формирование вложений (фото)
