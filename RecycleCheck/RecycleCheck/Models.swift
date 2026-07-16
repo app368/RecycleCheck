@@ -101,55 +101,35 @@ struct ItemRecognition: Codable, Equatable {
 /// Предмет, который пользователь хочет проверить на пригодность к переработке
 struct RecycleItem: Identifiable, Codable {
     let id: UUID
-    
-    /// Описание предмета (опционально, вводит пользователь) — устаревшее поле,
-    /// сохранено для обратной совместимости с историей
-    var userDescription: String?
-    
-    /// Описание, полученное от AI Vision API (СП2) — устаревшее поле,
-    /// сохранено для обратной совместимости с историей
-    var aiDescription: String?
-    
-    /// Структурированное описание от AI Vision API (СП2, новая версия)
+
+    /// Структурированное описание от AI Vision API (СП2)
     var recognition: ItemRecognition?
-    
+
     /// Имя файла фотографии в локальном хранилище
     var photoFileName: String?
-    
+
     /// Дата создания запроса
     let createdAt: Date
-    
+
     init(recognition: ItemRecognition? = nil, photoFileName: String? = nil) {
         self.id = UUID()
         self.recognition = recognition
         self.photoFileName = photoFileName
         self.createdAt = Date()
     }
-    
-    /// Обратная совместимость: старый инициализатор
-    init(userDescription: String? = nil, photoFileName: String? = nil) {
-        self.id = UUID()
-        self.userDescription = userDescription
-        self.photoFileName = photoFileName
-        self.createdAt = Date()
-    }
-    
-    /// Текст для поиска на сайте: приоритет — структурированное описание,
-    /// затем AI-описание, затем пользовательское
+
+    /// Текст для поиска на сайте — структурированное описание
     var searchText: String? {
-        if let recognition = recognition, recognition.isValid {
-            return recognition.fullSearchText
-        }
-        return aiDescription ?? userDescription
+        guard let recognition = recognition, recognition.isValid else { return nil }
+        return recognition.fullSearchText
     }
-    
+
     /// Отображаемое название предмета с заглавной первой буквой
     var displayName: String {
         if let recognition = recognition, recognition.isValid {
             return recognition.displayName
         }
-        guard let text = searchText, !text.isEmpty else { return "Unknown item" }
-        return text.prefix(1).uppercased() + text.dropFirst()
+        return "Unknown item"
     }
 }
 
@@ -158,14 +138,11 @@ struct RecycleItem: Identifiable, Codable {
 /// Подтверждение вердикта — дословный пункт списка с сайта (списочная
 /// архитектура): цитата + секция, где она найдена. Концепция «простого
 /// ответа»: других подробностей приложение не показывает.
-/// Старые записи истории (СП4.1) содержали также exceptions/preparation/
-/// correctedStatus — при чтении эти лишние ключи игнорируются
 struct Confirmation: Codable, Equatable {
     /// Дословная цитата с сайта, подтверждающая вердикт
     let citation: String
 
-    /// Секция сайта, где найден подтверждающий пункт.
-    /// nil — старые записи истории или подтверждение без секции
+    /// Секция сайта, где найден подтверждающий пункт
     var sourceSection: String? = nil
 }
 

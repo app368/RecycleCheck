@@ -312,7 +312,9 @@ struct ResultView: View {
 #Preview("Recyclable") {
     NavigationStack {
         ResultView(
-            item: RecycleItem(userDescription: "plastic water bottle"),
+            item: RecycleItem(recognition: ItemRecognition(
+                category: .item, material: "plastic", itemType: "bottle", contentsUse: ["beverage"]
+            )),
             result: SearchResult(
                 status: .recyclable,
                 sourceURL: "https://example-recycling-site.com",
@@ -328,7 +330,9 @@ struct ResultView: View {
 #Preview("Not recyclable") {
     NavigationStack {
         ResultView(
-            item: RecycleItem(userDescription: "glass mug"),
+            item: RecycleItem(recognition: ItemRecognition(
+                category: .item, material: "glass", itemType: "mug", contentsUse: ["beverage"]
+            )),
             result: SearchResult(
                 status: .notRecyclable,
                 sourceURL: "https://example-recycling-site.com",
@@ -344,7 +348,9 @@ struct ResultView: View {
 #Preview("Unclear") {
     NavigationStack {
         ResultView(
-            item: RecycleItem(userDescription: "old sneakers"),
+            item: RecycleItem(recognition: ItemRecognition(
+                category: .item, material: "N/A", itemType: "sneakers", contentsUse: []
+            )),
             result: SearchResult(status: .notFound)
         )
     }

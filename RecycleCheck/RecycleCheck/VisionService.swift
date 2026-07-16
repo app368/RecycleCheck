@@ -211,8 +211,7 @@ final class VisionService {
         // Определяем категорию
         guard let categoryStr = dict["category"] as? String,
               let category = RecognitionCategory(rawValue: categoryStr) else {
-            // Если категории нет, пробуем как старый формат (обратная совместимость)
-            return try parseLegacyFormat(dict: dict)
+            throw VisionError.parsingFailed("No category found")
         }
         
         // MARK: Парсинг по категории
@@ -283,34 +282,6 @@ final class VisionService {
         case .item:
             return ""
         }
-    }
-    
-    // MARK: - Обратная совместимость со старым форматом
-    
-    /// Если в ответе нет поля category, парсим как старый формат (только item).
-    private func parseLegacyFormat(dict: [String: Any]) throws -> ItemRecognition {
-        let material = (dict["material"] as? String)?.lowercased() ?? ""
-        let itemType = (dict["itemType"] as? String)?.lowercased() ?? ""
-        
-        guard !itemType.isEmpty else {
-            throw VisionError.parsingFailed("No category or itemType found")
-        }
-        
-        var contents: [String] = []
-        if let arr = dict["contentsUse"] as? [String] {
-            contents = arr.map { $0.lowercased() }
-        } else if let arr = dict["searchKeywords"] as? [String] {
-            // Совместимость со старым именем поля
-            contents = arr.map { $0.lowercased() }
-        }
-        if contents.isEmpty { contents = ["N/A"] }
-        
-        return ItemRecognition(
-            category: .item,
-            material: material.isEmpty ? "N/A" : material,
-            itemType: itemType,
-            contentsUse: contents
-        )
     }
     
     // MARK: - Очистка JSON-ответа

@@ -90,27 +90,16 @@ struct HistoryDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
     
-    // MARK: - Секция описаний
-    
+    // MARK: - Секция описания предмета (AI-распознавание, СП2)
+
+    @ViewBuilder
     private var descriptionsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Описание от AI (СП2)
-            if let aiDesc = entry.item.aiDescription, !aiDesc.isEmpty {
-                DetailCard(
-                    title: "AI description",
-                    icon: "brain",
-                    content: aiDesc
-                )
-            }
-            
-            // Описание от пользователя
-            if let userDesc = entry.item.userDescription, !userDesc.isEmpty {
-                DetailCard(
-                    title: "Your description",
-                    icon: "text.quote",
-                    content: userDesc
-                )
-            }
+        if let text = entry.item.searchText, !text.isEmpty {
+            DetailCard(
+                title: "AI description",
+                icon: "brain",
+                content: text
+            )
         }
     }
     
@@ -268,7 +257,9 @@ struct InfoRow: View {
     NavigationStack {
         HistoryDetailView(
             entry: CheckHistoryEntry(
-                item: RecycleItem(userDescription: "Plastic bottle"),
+                item: RecycleItem(recognition: ItemRecognition(
+                    category: .item, material: "plastic", itemType: "bottle", contentsUse: ["beverage"]
+                )),
                 result: SearchResult(
                     status: .recyclable,
                     evidence: "Plastic bottles (PET #1) are widely accepted in curbside recycling programs."
