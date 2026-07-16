@@ -208,7 +208,7 @@ struct HistoryRowView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .frame(width: 56, height: 56)
+        .frame(width: 112, height: 112)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .background(
             RoundedRectangle(cornerRadius: 8)
