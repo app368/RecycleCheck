@@ -80,29 +80,14 @@ struct HistoryView: View {
                 }
             }
             .onDelete(perform: deleteBySwipe)
-            
-            // MARK: - Кнопки удаления внизу списка
-            Section {
-                // Удаление выбранных — видна только в режиме Edit
-                if editMode == .active {
-                    Button(role: .destructive) {
-                        showDeleteSelectedAlert = true
-                    } label: {
-                        Label("Delete selected (\(selectedEntries.count))",
-                              systemImage: "trash")
-                    }
-                    .disabled(selectedEntries.isEmpty)
-                }
-                
-                // Удаление всех — видна всегда
-                Button(role: .destructive) {
-                    showDeleteAllAlert = true
-                } label: {
-                    Label("Delete all", systemImage: "trash.fill")
-                }
-            }
         }
         .listStyle(.insetGrouped)
+        // Кнопки удаления закреплены внизу экрана (как actionsSection на
+        // ResultView) — список скроллится под ними, не приходится
+        // прокручивать длинную историю, чтобы их достать
+        .safeAreaInset(edge: .bottom) {
+            deleteActionsBar
+        }
         // Алерт: удаление всех записей
         .alert("Delete all history?",
                isPresented: $showDeleteAllAlert) {
@@ -124,7 +109,37 @@ struct HistoryView: View {
             Text("This will permanently remove \(selectedEntries.count) selected entries and their photos.")
         }
     }
-    
+
+    // MARK: - Панель кнопок удаления, закреплена внизу экрана
+
+    private var deleteActionsBar: some View {
+        VStack(spacing: 10) {
+            // Удаление выбранных — видна только в режиме Edit
+            if editMode == .active {
+                Button(role: .destructive) {
+                    showDeleteSelectedAlert = true
+                } label: {
+                    Label("Delete selected (\(selectedEntries.count))",
+                          systemImage: "trash")
+                        .frame(maxWidth: .infinity)
+                }
+                .disabled(selectedEntries.isEmpty)
+            }
+
+            // Удаление всех — видна всегда
+            Button(role: .destructive) {
+                showDeleteAllAlert = true
+            } label: {
+                Label("Delete all", systemImage: "trash.fill")
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .buttonStyle(.bordered)
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial)
+    }
+
     // MARK: - Загрузка истории из хранилища
     
     private func loadHistory() {
