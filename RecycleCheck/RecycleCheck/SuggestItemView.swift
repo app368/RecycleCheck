@@ -120,18 +120,6 @@ struct SuggestItemView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.displayName)
                     .font(.headline)
-                
-                if let aiDesc = item.aiDescription {
-                    Text("Recognized: \(aiDesc)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                
-                if let userDesc = item.userDescription {
-                    Text("Your description: \(userDesc)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
             }
             
             Spacer()
@@ -285,7 +273,9 @@ struct SuggestItemView: View {
 #Preview {
     NavigationStack {
         SuggestItemView(
-            item: RecycleItem(userDescription: "old sneakers")
+            item: RecycleItem(recognition: ItemRecognition(
+                category: .item, material: "N/A", itemType: "sneakers", contentsUse: []
+            ))
         )
     }
 }
