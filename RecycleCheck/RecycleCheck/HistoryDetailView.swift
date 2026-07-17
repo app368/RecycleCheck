@@ -66,7 +66,8 @@ struct HistoryDetailView: View {
                     }
                     .padding()
                 }
-                // Плавающая стрелка — лёгкий фон, справа над кнопками
+                // Плавающая стрелка — эффект жидкого стекла (родной для
+                // iOS 26) с откликом на нажатие, справа над кнопками
                 // действий; вниз, пока есть что скроллить, вверх — когда
                 // дошли до конца страницы. arrow.down/up — со «стержнем»
                 // (хвостиком), не просто уголок chevron
@@ -84,13 +85,12 @@ struct HistoryDetailView: View {
                             .fontWeight(.semibold)
                             .foregroundStyle(statusColor)
                             .frame(width: 60, height: 60)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
-                            .shadow(radius: 3)
                             // Одинаковая длительность смены направления
                             // в обе стороны — независимо от инерции скролла
                             .animation(.easeInOut(duration: 0.2), value: isAtBottom)
                     }
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.circle)
                     .padding(.trailing, 12)
                     .padding(.bottom, 8)
                 }
