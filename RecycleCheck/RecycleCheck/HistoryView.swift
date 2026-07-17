@@ -35,10 +35,25 @@ struct HistoryView: View {
         .navigationTitle("History")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
-            // Кнопка Edit/Done — только если есть записи
+            // Edit/Done — только если есть записи. Кастомная кнопка вместо
+            // системной EditButton — в общем стиле (зелёная капсула)
             if !history.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
-                    EditButton()
+                    Button {
+                        withAnimation {
+                            editMode = editMode == .active ? .inactive : .active
+                        }
+                        if editMode == .inactive {
+                            selectedEntries.removeAll()
+                        }
+                    } label: {
+                        Text(editMode == .active ? "Done" : "Edit")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .tint(.green)
                 }
             }
         }
@@ -84,9 +99,12 @@ struct HistoryView: View {
         .listStyle(.insetGrouped)
         // Кнопки удаления закреплены внизу экрана (как actionsSection на
         // ResultView) — список скроллится под ними, не приходится
-        // прокручивать длинную историю, чтобы их достать
+        // прокручивать длинную историю, чтобы их достать. Панель видна
+        // только в режиме Edit, вне его — не занимает места вообще
         .safeAreaInset(edge: .bottom) {
-            deleteActionsBar
+            if editMode == .active {
+                deleteActionsBar
+            }
         }
         // Алерт: удаление всех записей
         .alert("Delete all history?",
@@ -113,20 +131,20 @@ struct HistoryView: View {
     // MARK: - Панель кнопок удаления, закреплена внизу экрана
 
     private var deleteActionsBar: some View {
+        // Видна только когда открыт вызывающим кодом Edit-режим.
+        // Delete selected — тот же явный стиль, что и Delete all, даже
+        // при счётчике 0 (не приглушается); нажатие при пустом выборе
+        // просто ничего не делает
         VStack(spacing: 10) {
-            // Удаление выбранных — видна только в режиме Edit
-            if editMode == .active {
-                Button(role: .destructive) {
-                    showDeleteSelectedAlert = true
-                } label: {
-                    Label("Delete selected (\(selectedEntries.count))",
-                          systemImage: "trash")
-                        .frame(maxWidth: .infinity)
-                }
-                .disabled(selectedEntries.isEmpty)
+            Button(role: .destructive) {
+                guard !selectedEntries.isEmpty else { return }
+                showDeleteSelectedAlert = true
+            } label: {
+                Label("Delete selected (\(selectedEntries.count))",
+                      systemImage: "trash.fill")
+                    .frame(maxWidth: .infinity)
             }
 
-            // Удаление всех — видна всегда
             Button(role: .destructive) {
                 showDeleteAllAlert = true
             } label: {
