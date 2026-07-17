@@ -57,7 +57,18 @@ struct ItemRecognition: Codable, Equatable {
         parts.append(contentsOf: validContents)
         return parts.joined(separator: " ")
     }
-    
+
+    /// Текст для отображения в UI — те же слова, что в fullSearchText,
+    /// но через запятую с пробелом (например: "glass, jar, coffee")
+    var displaySearchText: String {
+        var parts: [String] = []
+        if material.lowercased() != "n/a" { parts.append(material) }
+        if itemType.lowercased() != "n/a" { parts.append(itemType) }
+        let validContents = contentsUse.filter { $0.lowercased() != "n/a" }
+        parts.append(contentsOf: validContents)
+        return parts.joined(separator: ", ")
+    }
+
     /// Отображаемое название предмета с заглавной буквы
     var displayName: String {
         let materialPart = material.lowercased() == "n/a" ? "" : material
@@ -122,6 +133,12 @@ struct RecycleItem: Identifiable, Codable {
     var searchText: String? {
         guard let recognition = recognition, recognition.isValid else { return nil }
         return recognition.fullSearchText
+    }
+
+    /// Текст для отображения в UI — через запятую с пробелом
+    var displaySearchText: String? {
+        guard let recognition = recognition, recognition.isValid else { return nil }
+        return recognition.displaySearchText
     }
 
     /// Отображаемое название предмета с заглавной первой буквой

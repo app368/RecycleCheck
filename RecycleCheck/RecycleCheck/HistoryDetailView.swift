@@ -177,7 +177,7 @@ struct HistoryDetailView: View {
 
     @ViewBuilder
     private var descriptionsSection: some View {
-        if let text = entry.item.searchText, !text.isEmpty {
+        if let text = entry.item.displaySearchText, !text.isEmpty {
             DetailCard(
                 title: "AI description",
                 icon: "brain",
@@ -320,22 +320,31 @@ struct DetailCard: View {
     let icon: String
     let content: String
 
-    /// Крупнее и ярче + по центру — для AI description на HistoryDetailView
+    /// По центру, заголовок крупнее/ярче, значение — приглушённее.
+    /// Для AI description на HistoryDetailView
     var emphasized: Bool = false
 
     var body: some View {
         VStack(alignment: emphasized ? .center : .leading, spacing: 8) {
-            // Заголовок карточки
-            Label(title, systemImage: icon)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fontWeight(.medium)
-                .frame(maxWidth: .infinity, alignment: emphasized ? .center : .leading)
+            // Заголовок карточки — крупнее и ярче при emphasized;
+            // без иконки (не Label, а обычный Text)
+            Group {
+                if emphasized {
+                    Text(title)
+                } else {
+                    Label(title, systemImage: icon)
+                }
+            }
+            .font(emphasized ? .headline : .caption)
+            .foregroundStyle(emphasized ? .primary : .secondary)
+            .fontWeight(emphasized ? .bold : .medium)
+            .frame(maxWidth: .infinity, alignment: emphasized ? .center : .leading)
 
-            // Содержимое
+            // Содержимое — при emphasized чуть ярче обычного .secondary,
+            // но всё ещё вторично по отношению к заголовку
             Text(content)
-                .font(emphasized ? .title3 : .body)
-                .fontWeight(emphasized ? .semibold : .regular)
+                .font(.body)
+                .foregroundStyle(emphasized ? Color.primary.opacity(0.75) : .primary)
                 .multilineTextAlignment(emphasized ? .center : .leading)
                 // Долгое нажатие — системное меню: Copy / Translate / Share
                 .textSelection(.enabled)
