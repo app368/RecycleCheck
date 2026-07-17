@@ -2,8 +2,9 @@ import SwiftUI
 
 // MARK: - Экран деталей записи истории (СП7.2)
 // Показывает полную информацию о проверке:
-// фото предмета, описания (пользовательское и AI),
-// статус, доказательство с сайта, дата, отправка email.
+// фото предмета, описание (распознанное ИИ, могло быть отредактировано
+// пользователем на экране распознавания), статус, доказательство с сайта,
+// дата, отправка email.
 
 struct HistoryDetailView: View {
 
@@ -179,7 +180,7 @@ struct HistoryDetailView: View {
     private var descriptionsSection: some View {
         if let text = entry.item.displaySearchText, !text.isEmpty {
             DetailCard(
-                title: "AI description",
+                title: "Item description",
                 icon: "brain",
                 content: text,
                 emphasized: true
@@ -321,7 +322,7 @@ struct DetailCard: View {
     let content: String
 
     /// По центру, заголовок крупнее/ярче, значение — приглушённее.
-    /// Для AI description на HistoryDetailView
+    /// Для Item description на HistoryDetailView
     var emphasized: Bool = false
 
     var body: some View {
