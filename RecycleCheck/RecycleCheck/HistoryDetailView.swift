@@ -12,30 +12,48 @@ struct HistoryDetailView: View {
 
     /// Флаг показа страницы источника внутри приложения
     @State private var showSourcePage = false
-    
+
+    /// Флаг показа сайта переработки, если конкретной ссылки на источник нет
+    @State private var showWebsite = false
+
+    /// Флаг перехода к отправке email (СП5)
+    @State private var showEmailComposer = false
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                
-                // MARK: - Фотография предмета
-                photoSection
-                
-                // MARK: - Статус проверки
-                statusSection
-                
-                // MARK: - Описания предмета
-                descriptionsSection
-                
-                // MARK: - Подтверждение вердикта (СП4.1) или старый evidence
-                confirmationOrEvidenceSection
-                
-                // MARK: - Информация о проверке
-                infoSection
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+
+                    // MARK: - Фотография предмета
+                    photoSection
+
+                    // MARK: - Статус проверки
+                    statusSection
+
+                    // MARK: - Описания предмета
+                    descriptionsSection
+
+                    // MARK: - Подтверждение вердикта (СП4.1) или старый evidence
+                    confirmationOrEvidenceSection
+
+                    // MARK: - Информация о проверке
+                    infoSection
+                }
+                .padding()
             }
-            .padding()
+
+            // MARK: - Кнопки действий — у нижней границы экрана (как ResultView)
+
+            actionsSection
         }
         .navigationTitle("Check details")
         .navigationBarTitleDisplayMode(.inline)
+
+        // MARK: - Переход к отправке email (СП5)
+
+        .navigationDestination(isPresented: $showEmailComposer) {
+            SuggestItemView(item: entry.item)
+        }
 
         // MARK: - Страница источника внутри приложения
 
@@ -45,10 +63,21 @@ struct HistoryDetailView: View {
                     .ignoresSafeArea()
             }
         }
+
+        // MARK: - Сайт переработки, если конкретной ссылки на источник нет
+
+        .sheet(isPresented: $showWebsite) {
+            if let url = websiteURL {
+                SafariView(url: url)
+                    .ignoresSafeArea()
+            }
+        }
     }
-    
+
     // MARK: - Секция фотографии
-    
+    // Уменьшена примерно на 1/3 относительно исходного размера — фото
+    // здесь вспомогательное, страница фокусируется на результате проверки
+
     private var photoSection: some View {
         Group {
             if let fileName = entry.item.photoFileName,
@@ -56,6 +85,7 @@ struct HistoryDetailView: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
+                    .frame(maxHeight: 180)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     // Тап открывает фото на весь экран с зумом
                     .zoomablePhoto(image)
@@ -63,7 +93,7 @@ struct HistoryDetailView: View {
                 // Заглушка, если фото нет
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color(.systemGray6))
-                    .frame(height: 200)
+                    .frame(height: 135)
                     .overlay {
                         Image(systemName: "photo")
                             .font(.largeTitle)
@@ -71,6 +101,7 @@ struct HistoryDetailView: View {
                     }
             }
         }
+        .frame(maxWidth: .infinity)
     }
     
     // MARK: - Секция статуса
@@ -138,25 +169,6 @@ struct HistoryDetailView: View {
                 )
             )
             
-            // Источник: вместо полного URL — кнопка с коротким именем сайта,
-            // тап открывает страницу внутри приложения
-            if sourcePageURL != nil {
-                HStack {
-                    Text("Source")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    Spacer()
-                    Button {
-                        showSourcePage = true
-                    } label: {
-                        Label(sourceSiteName, systemImage: "safari")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundStyle(.blue)
-                    }
-                }
-            }
-            
             // Статус отправки email (СП5)
             InfoRow(
                 label: "Email sent",
@@ -176,10 +188,53 @@ struct HistoryDetailView: View {
         return URL(string: urlString)
     }
 
-    /// Короткое имя сайта для кнопки: хост без технического «www.»
-    private var sourceSiteName: String {
-        guard let host = sourcePageURL?.host else { return "Website" }
-        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+    /// URL сайта переработки (главная) — запасной вариант, если у записи
+    /// нет конкретной ссылки на источник
+    private var websiteURL: URL? {
+        URL(string: AppConfig.recyclingWebsiteURL)
+    }
+
+    // MARK: - Кнопки действий — запрос по email + переход на сайт
+    // (тот же паттерн, что на ResultView): «Open source page», если есть
+    // конкретная ссылка, иначе «Visit website»
+
+    private var actionsSection: some View {
+        VStack(spacing: 10) {
+            actionButton(title: "Send a question by email", icon: "envelope.fill") {
+                showEmailComposer = true
+            }
+
+            if sourcePageURL != nil {
+                actionButton(title: "Open source page", icon: "safari") {
+                    showSourcePage = true
+                }
+            } else {
+                actionButton(title: "Visit website", icon: "safari") {
+                    showWebsite = true
+                }
+                .disabled(websiteURL == nil)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial)
+    }
+
+    /// Кнопка действия в едином стиле: заливка цветом статуса, белый текст
+    private func actionButton(
+        title: String,
+        icon: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(statusColor)
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
     }
 
     // MARK: - Вспомогательные свойства статуса
