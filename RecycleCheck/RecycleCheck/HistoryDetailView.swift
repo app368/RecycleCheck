@@ -2,8 +2,9 @@ import SwiftUI
 
 // MARK: - Экран деталей записи истории (СП7.2)
 // Показывает полную информацию о проверке:
-// фото предмета, описания (пользовательское и AI),
-// статус, доказательство с сайта, дата, отправка email.
+// фото предмета, описание (распознанное ИИ, могло быть отредактировано
+// пользователем на экране распознавания), статус, доказательство с сайта,
+// дата, отправка email.
 
 struct HistoryDetailView: View {
 
@@ -12,30 +13,102 @@ struct HistoryDetailView: View {
 
     /// Флаг показа страницы источника внутри приложения
     @State private var showSourcePage = false
-    
+
+    /// Флаг показа сайта переработки, если конкретной ссылки на источник нет
+    @State private var showWebsite = false
+
+    /// Флаг перехода к отправке email (СП5)
+    @State private var showEmailComposer = false
+
+    /// Якоря верха/низа контента — для плавающей стрелки скролла
+    private let topAnchorID = "top"
+    private let bottomAnchorID = "bottom"
+
+    /// true, когда скролл дошёл до конца страницы — стрелка меняет
+    /// направление на «вверх»
+    @State private var isAtBottom = false
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                
-                // MARK: - Фотография предмета
-                photoSection
-                
-                // MARK: - Статус проверки
-                statusSection
-                
-                // MARK: - Описания предмета
-                descriptionsSection
-                
-                // MARK: - Подтверждение вердикта (СП4.1) или старый evidence
-                confirmationOrEvidenceSection
-                
-                // MARK: - Информация о проверке
-                infoSection
+        VStack(spacing: 0) {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+
+                        // MARK: - Описание предмета (AI-распознавание) — первым
+                        descriptionsSection
+                            .id(topAnchorID)
+
+                        // MARK: - Фотография предмета
+                        photoSection
+
+                        // MARK: - Статус проверки
+                        statusSection
+
+                        // MARK: - Подтверждение вердикта (СП4.1) или старый evidence
+                        confirmationOrEvidenceSection
+
+                        // MARK: - Информация о проверке
+                        infoSection
+
+                        // Маркер конца контента: как только он попадает
+                        // в зону видимости, значит проскроллили до низа —
+                        // стрелка разворачивается вверх. Надёжнее ручного
+                        // расчёта смещений через onScrollGeometryChange
+                        Color.clear
+                            .frame(height: 12)
+                            .id(bottomAnchorID)
+                            .onScrollVisibilityChange(threshold: 0.5) { visible in
+                                // Анимация смены направления — на самой
+                                // иконке (фиксированная длительность,
+                                // симметрично в обе стороны), а не пружиной
+                                // withAnimation с «хвостом»
+                                isAtBottom = visible
+                            }
+                    }
+                    .padding()
+                }
+                // Плавающая стрелка — эффект жидкого стекла (родной для
+                // iOS 26) с откликом на нажатие, справа над кнопками
+                // действий; вниз, пока есть что скроллить, вверх — когда
+                // дошли до конца страницы. arrow.down/up — со «стержнем»
+                // (хвостиком), не просто уголок chevron
+                .overlay(alignment: .bottomTrailing) {
+                    Button {
+                        withAnimation {
+                            proxy.scrollTo(
+                                isAtBottom ? topAnchorID : bottomAnchorID,
+                                anchor: isAtBottom ? .top : .bottom
+                            )
+                        }
+                    } label: {
+                        Image(systemName: isAtBottom ? "arrow.up" : "arrow.down")
+                            .font(.title)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(statusColor)
+                            .frame(width: 60, height: 60)
+                            // Одинаковая длительность смены направления
+                            // в обе стороны — независимо от инерции скролла
+                            .animation(.easeInOut(duration: 0.2), value: isAtBottom)
+                    }
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.circle)
+                    .padding(.trailing, 12)
+                    .padding(.bottom, 8)
+                }
             }
-            .padding()
+
+            // MARK: - Кнопки действий — у нижней границы экрана (как ResultView)
+
+            actionsSection
         }
         .navigationTitle("Check details")
         .navigationBarTitleDisplayMode(.inline)
+
+        // MARK: - Переход к отправке email (СП5)
+
+        .navigationDestination(isPresented: $showEmailComposer) {
+            SuggestItemView(item: entry.item)
+        }
 
         // MARK: - Страница источника внутри приложения
 
@@ -45,10 +118,19 @@ struct HistoryDetailView: View {
                     .ignoresSafeArea()
             }
         }
+
+        // MARK: - Сайт переработки, если конкретной ссылки на источник нет
+
+        .sheet(isPresented: $showWebsite) {
+            if let url = websiteURL {
+                SafariView(url: url)
+                    .ignoresSafeArea()
+            }
+        }
     }
-    
+
     // MARK: - Секция фотографии
-    
+
     private var photoSection: some View {
         Group {
             if let fileName = entry.item.photoFileName,
@@ -56,6 +138,7 @@ struct HistoryDetailView: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
+                    .frame(maxHeight: 270)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     // Тап открывает фото на весь экран с зумом
                     .zoomablePhoto(image)
@@ -71,6 +154,7 @@ struct HistoryDetailView: View {
                     }
             }
         }
+        .frame(maxWidth: .infinity)
     }
     
     // MARK: - Секция статуса
@@ -94,11 +178,12 @@ struct HistoryDetailView: View {
 
     @ViewBuilder
     private var descriptionsSection: some View {
-        if let text = entry.item.searchText, !text.isEmpty {
+        if let text = entry.item.displaySearchText, !text.isEmpty {
             DetailCard(
-                title: "AI description",
+                title: "Item description",
                 icon: "brain",
-                content: text
+                content: text,
+                emphasized: true
             )
         }
     }
@@ -138,25 +223,6 @@ struct HistoryDetailView: View {
                 )
             )
             
-            // Источник: вместо полного URL — кнопка с коротким именем сайта,
-            // тап открывает страницу внутри приложения
-            if sourcePageURL != nil {
-                HStack {
-                    Text("Source")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    Spacer()
-                    Button {
-                        showSourcePage = true
-                    } label: {
-                        Label(sourceSiteName, systemImage: "safari")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundStyle(.blue)
-                    }
-                }
-            }
-            
             // Статус отправки email (СП5)
             InfoRow(
                 label: "Email sent",
@@ -176,10 +242,53 @@ struct HistoryDetailView: View {
         return URL(string: urlString)
     }
 
-    /// Короткое имя сайта для кнопки: хост без технического «www.»
-    private var sourceSiteName: String {
-        guard let host = sourcePageURL?.host else { return "Website" }
-        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+    /// URL сайта переработки (главная) — запасной вариант, если у записи
+    /// нет конкретной ссылки на источник
+    private var websiteURL: URL? {
+        URL(string: AppConfig.recyclingWebsiteURL)
+    }
+
+    // MARK: - Кнопки действий — запрос по email + переход на сайт
+    // (тот же паттерн, что на ResultView): «Open source page», если есть
+    // конкретная ссылка, иначе «Visit website»
+
+    private var actionsSection: some View {
+        VStack(spacing: 10) {
+            actionButton(title: "Send a question by email", icon: "envelope.fill") {
+                showEmailComposer = true
+            }
+
+            if sourcePageURL != nil {
+                actionButton(title: "Open source page", icon: "safari") {
+                    showSourcePage = true
+                }
+            } else {
+                actionButton(title: "Visit website", icon: "safari") {
+                    showWebsite = true
+                }
+                .disabled(websiteURL == nil)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial)
+    }
+
+    /// Кнопка действия в едином стиле: заливка цветом статуса, белый текст
+    private func actionButton(
+        title: String,
+        icon: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(statusColor)
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
     }
 
     // MARK: - Вспомогательные свойства статуса
@@ -211,22 +320,37 @@ struct DetailCard: View {
     let title: String
     let icon: String
     let content: String
-    
+
+    /// По центру, заголовок крупнее/ярче, значение — приглушённее.
+    /// Для Item description на HistoryDetailView
+    var emphasized: Bool = false
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Заголовок карточки
-            Label(title, systemImage: icon)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fontWeight(.medium)
-            
-            // Содержимое
+        VStack(alignment: emphasized ? .center : .leading, spacing: 8) {
+            // Заголовок карточки — крупнее и ярче при emphasized;
+            // без иконки (не Label, а обычный Text)
+            Group {
+                if emphasized {
+                    Text(title)
+                } else {
+                    Label(title, systemImage: icon)
+                }
+            }
+            .font(emphasized ? .headline : .caption)
+            .foregroundStyle(emphasized ? .primary : .secondary)
+            .fontWeight(emphasized ? .bold : .medium)
+            .frame(maxWidth: .infinity, alignment: emphasized ? .center : .leading)
+
+            // Содержимое — при emphasized чуть ярче обычного .secondary,
+            // но всё ещё вторично по отношению к заголовку
             Text(content)
                 .font(.body)
+                .foregroundStyle(emphasized ? Color.primary.opacity(0.75) : .primary)
+                .multilineTextAlignment(emphasized ? .center : .leading)
                 // Долгое нажатие — системное меню: Copy / Translate / Share
                 .textSelection(.enabled)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: emphasized ? .center : .leading)
         .padding()
         .background(Color(.systemGray6))
         .clipShape(RoundedRectangle(cornerRadius: 12))

@@ -94,13 +94,13 @@ struct ConfirmationSectionView: View {
                     }
                 }
                 Text("Citation from list")
-                    .font(.subheadline)
+                    .font(.headline)
             }
 
             // Название секции сайта — по центру, курсив + bold, в цвете вердикта
             if let section = confirmation.sourceSection {
                 Text("\(section):")
-                    .font(.subheadline)
+                    .font(.headline)
                     .fontWeight(.bold)
                     .italic()
                     .foregroundStyle(tint)
