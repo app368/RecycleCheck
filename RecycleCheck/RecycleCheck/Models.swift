@@ -196,10 +196,14 @@ enum RecycleStatus: String, Codable {
         case .recyclable:
             return .green
         case .notRecyclable:
-            // Кислотный циан с синим, светлее (0.12, 0.46, 0.66).
-            // Другие варианты: (0.24, 0.42, 0.44) приглушённый циан,
-            // (0.22, 0.22, 0.22) тёмно-серый
-            return Color(red: 0.25, green: 0.60, blue: 0.78)
+            // Финальный выбор: Coral #FF6B6B, прозрачность 80%
+            // Другие протестированные варианты: Apricot #FF8A65 (80%),
+            // Sunny Cloud #FFAA7A (80%), Scarlet Smoke #FF5252 (80%), Peach
+            // #FF9A76 (80%), Rose #F56C8A (80%), Blush #FF6987 (80%),
+            // Salmon #FA8072 (80%), кислотный циан (0.25, 0.60, 0.78),
+            // приглушённый циан (0.24, 0.42, 0.44), тёмно-серый
+            // (0.22, 0.22, 0.22)
+            return Color(red: 1.0, green: 0.42, blue: 0.42, opacity: 0.8)
         case .notFound:
             return .blue
         }
