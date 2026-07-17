@@ -19,27 +19,81 @@ struct HistoryDetailView: View {
     /// Флаг перехода к отправке email (СП5)
     @State private var showEmailComposer = false
 
+    /// Якоря верха/низа контента — для плавающей стрелки скролла
+    private let topAnchorID = "top"
+    private let bottomAnchorID = "bottom"
+
+    /// true, когда скролл дошёл до конца страницы — стрелка меняет
+    /// направление на «вверх»
+    @State private var isAtBottom = false
+
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
 
-                    // MARK: - Фотография предмета
-                    photoSection
+                        // MARK: - Описание предмета (AI-распознавание) — первым
+                        descriptionsSection
+                            .id(topAnchorID)
 
-                    // MARK: - Статус проверки
-                    statusSection
+                        // MARK: - Фотография предмета
+                        photoSection
 
-                    // MARK: - Описания предмета
-                    descriptionsSection
+                        // MARK: - Статус проверки
+                        statusSection
 
-                    // MARK: - Подтверждение вердикта (СП4.1) или старый evidence
-                    confirmationOrEvidenceSection
+                        // MARK: - Подтверждение вердикта (СП4.1) или старый evidence
+                        confirmationOrEvidenceSection
 
-                    // MARK: - Информация о проверке
-                    infoSection
+                        // MARK: - Информация о проверке
+                        infoSection
+
+                        // Маркер конца контента: как только он попадает
+                        // в зону видимости, значит проскроллили до низа —
+                        // стрелка разворачивается вверх. Надёжнее ручного
+                        // расчёта смещений через onScrollGeometryChange
+                        Color.clear
+                            .frame(height: 12)
+                            .id(bottomAnchorID)
+                            .onScrollVisibilityChange(threshold: 0.5) { visible in
+                                // Анимация смены направления — на самой
+                                // иконке (фиксированная длительность,
+                                // симметрично в обе стороны), а не пружиной
+                                // withAnimation с «хвостом»
+                                isAtBottom = visible
+                            }
+                    }
+                    .padding()
                 }
-                .padding()
+                // Плавающая стрелка — лёгкий фон, справа над кнопками
+                // действий; вниз, пока есть что скроллить, вверх — когда
+                // дошли до конца страницы. arrow.down/up — со «стержнем»
+                // (хвостиком), не просто уголок chevron
+                .overlay(alignment: .bottomTrailing) {
+                    Button {
+                        withAnimation {
+                            proxy.scrollTo(
+                                isAtBottom ? topAnchorID : bottomAnchorID,
+                                anchor: isAtBottom ? .top : .bottom
+                            )
+                        }
+                    } label: {
+                        Image(systemName: isAtBottom ? "arrow.up" : "arrow.down")
+                            .font(.title)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(statusColor)
+                            .frame(width: 60, height: 60)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                            .shadow(radius: 3)
+                            // Одинаковая длительность смены направления
+                            // в обе стороны — независимо от инерции скролла
+                            .animation(.easeInOut(duration: 0.2), value: isAtBottom)
+                    }
+                    .padding(.trailing, 12)
+                    .padding(.bottom, 8)
+                }
             }
 
             // MARK: - Кнопки действий — у нижней границы экрана (как ResultView)
@@ -75,8 +129,6 @@ struct HistoryDetailView: View {
     }
 
     // MARK: - Секция фотографии
-    // Уменьшена примерно на 1/3 относительно исходного размера — фото
-    // здесь вспомогательное, страница фокусируется на результате проверки
 
     private var photoSection: some View {
         Group {
@@ -85,7 +137,7 @@ struct HistoryDetailView: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
-                    .frame(maxHeight: 180)
+                    .frame(maxHeight: 270)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     // Тап открывает фото на весь экран с зумом
                     .zoomablePhoto(image)
@@ -93,7 +145,7 @@ struct HistoryDetailView: View {
                 // Заглушка, если фото нет
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color(.systemGray6))
-                    .frame(height: 135)
+                    .frame(height: 200)
                     .overlay {
                         Image(systemName: "photo")
                             .font(.largeTitle)
@@ -129,7 +181,8 @@ struct HistoryDetailView: View {
             DetailCard(
                 title: "AI description",
                 icon: "brain",
-                content: text
+                content: text,
+                emphasized: true
             )
         }
     }
@@ -266,22 +319,28 @@ struct DetailCard: View {
     let title: String
     let icon: String
     let content: String
-    
+
+    /// Крупнее и ярче + по центру — для AI description на HistoryDetailView
+    var emphasized: Bool = false
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: emphasized ? .center : .leading, spacing: 8) {
             // Заголовок карточки
             Label(title, systemImage: icon)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fontWeight(.medium)
-            
+                .frame(maxWidth: .infinity, alignment: emphasized ? .center : .leading)
+
             // Содержимое
             Text(content)
-                .font(.body)
+                .font(emphasized ? .title3 : .body)
+                .fontWeight(emphasized ? .semibold : .regular)
+                .multilineTextAlignment(emphasized ? .center : .leading)
                 // Долгое нажатие — системное меню: Copy / Translate / Share
                 .textSelection(.enabled)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: emphasized ? .center : .leading)
         .padding()
         .background(Color(.systemGray6))
         .clipShape(RoundedRectangle(cornerRadius: 12))
