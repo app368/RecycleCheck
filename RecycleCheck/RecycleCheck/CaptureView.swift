@@ -484,7 +484,10 @@ struct CaptureView: View {
             } catch {
                 await MainActor.run {
                     isRecognizing = false
-                    errorMessage = friendlyErrorMessage(from: error)
+                    let friendly = friendlyError(from: error)
+                    errorMessage = friendly.message.isEmpty
+                        ? friendly.title
+                        : "\(friendly.title). \(friendly.message)"
                     showError = true
                 }
             }
@@ -535,7 +538,10 @@ struct CaptureView: View {
             } catch {
                 await MainActor.run {
                     isSearching = false
-                    errorMessage = friendlyErrorMessage(from: error)
+                    let friendly = friendlyError(from: error)
+                    errorMessage = friendly.message.isEmpty
+                        ? friendly.title
+                        : "\(friendly.title). \(friendly.message)"
                     showError = true
                 }
                 return
