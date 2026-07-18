@@ -350,7 +350,7 @@ struct SettingsView: View {
             } catch {
                 await MainActor.run {
                     isDiscovering = false
-                    discoveryErrorMessage = error.localizedDescription
+                    discoveryErrorMessage = friendlyErrorMessage(from: error)
                     showDiscoveryError = true
                 }
             }

@@ -484,13 +484,13 @@ struct CaptureView: View {
             } catch {
                 await MainActor.run {
                     isRecognizing = false
-                    errorMessage = error.localizedDescription
+                    errorMessage = friendlyErrorMessage(from: error)
                     showError = true
                 }
             }
         }
     }
-    
+
     // MARK: - Шаг 2: Вердикт по базе списков (П3)
 
     private func startSearch() {
@@ -535,7 +535,7 @@ struct CaptureView: View {
             } catch {
                 await MainActor.run {
                     isSearching = false
-                    errorMessage = error.localizedDescription
+                    errorMessage = friendlyErrorMessage(from: error)
                     showError = true
                 }
                 return
