@@ -27,7 +27,7 @@ final class VerdictService {
         var errorDescription: String? {
             switch self {
             case .noRulesBase:
-                return "No recycling rules yet. Open Settings and tap \"Refresh source pages\" to read the website."
+                return "No recycling data yet. Open Settings and tap \"Refresh source pages\" to read the website."
             }
         }
     }

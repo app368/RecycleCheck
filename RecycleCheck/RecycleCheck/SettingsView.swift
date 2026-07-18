@@ -11,15 +11,18 @@ struct SettingsView: View {
     @State private var websiteURL: String = ""
     @State private var requestEmail: String = ""
 
-    /// Немодальное подтверждение сохранения (вместо алерта «Saved»)
-    @State private var savedNote: String?
-    
+    /// Всплывающий баннер-подтверждение (вместо смены текста кнопки Save
+    /// на «Saved», что выглядело слишком грубо). nil — баннер скрыт
+    @State private var toastMessage: String?
+
     /// Состояние обнаружения целевых страниц
     @State private var isDiscovering = false
     @State private var discoveryResult: String?
     @State private var showDiscoveryError = false
-    @State private var discoveryErrorMessage: String = ""
-    
+    @State private var discoveryErrorTitle: String = ""
+    @State private var discoveryErrorDetail: String = ""
+
+
     /// Фокус для управления клавиатурой
     @FocusState private var focusedField: Field?
     
@@ -62,7 +65,7 @@ struct SettingsView: View {
                     .foregroundStyle(.primary)
                     .textCase(nil)
             } footer: {
-                Text("The website where the app searches for recyclable items. You can replace it with your state or local recycling program website for local rules.")
+                Text("The website where the app searches for recyclable items. You can replace it with your state or local recycling program website for local data.")
                     .font(.subheadline)
                     .italic()
                     .padding(8)
@@ -74,7 +77,9 @@ struct SettingsView: View {
             Section {
                 HStack(alignment: .top) {
                     TextField("", text: $requestEmail, axis: .vertical)
-                        .textContentType(.emailAddress)
+                        // Без textContentType(.emailAddress) — панель
+                        // QuickType-подсказок для email мешала курсору
+                        // двигаться внутри текста (известный баг iOS)
                         .keyboardType(.emailAddress)
                         .autocapitalization(.none)
                         .autocorrectionDisabled()
@@ -140,13 +145,17 @@ struct SettingsView: View {
                         }
                         .listRowBackground(Color.green.opacity(0.08))
                     } else {
-                        Text("No data yet")
+                        Text("No data yet. Tap Refresh below to load it.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
 
-                    // Принудительное обновление кэша без смены URL
+                    // Принудительное обновление кэша без смены URL.
+                    // Скрываем клавиатуру — иначе секция с индикатором
+                    // может оказаться под ней, и пользователь решит, что
+                    // приложение зависло
                     Button {
+                        focusedField = nil
                         startDiscovery(for: AppConfig.recyclingWebsiteURL)
                     } label: {
                         // Яркая зелёная заливка — как кнопка Save
@@ -183,22 +192,38 @@ struct SettingsView: View {
         // Свой закреплённый заголовок вместо системного large title,
         // который сворачивается при скролле
         .safeAreaInset(edge: .top, spacing: 0) {
-            HStack {
-                Text("Settings")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                Spacer()
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Settings")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+                .padding(.bottom, 8)
+
+                // Баннер-подтверждение сохранения — появляется поверх
+                // контента и сам исчезает, кнопка Save при этом не меняется
+                if let toastMessage {
+                    Label(toastMessage, systemImage: "checkmark.circle.fill")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(.green)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 4)
-            .padding(.bottom, 8)
             .background(Color(.systemGroupedBackground))
         }
+        .animation(.easeInOut(duration: 0.25), value: toastMessage)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             // Save — в навбаре справа, закреплена и не уезжает при скролле.
-            // Живое подтверждение: кнопка на 2,5 с превращается в «✓ Saved»
+            // Всегда одинаковый вид — подтверждение показывает баннер выше
             ToolbarItem(placement: .topBarTrailing) {
                 saveToolbarButton
             }
@@ -214,44 +239,34 @@ struct SettingsView: View {
         .onAppear {
             loadSettings()
         }
-        .alert("Rules update failed", isPresented: $showDiscoveryError) {
+        // Без отдельного технического заголовка «Rules update failed» —
+        // первое предложение самого сообщения становится заголовком
+        // алерта, второе (если есть) — телом
+        .alert(discoveryErrorTitle, isPresented: $showDiscoveryError) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text(discoveryErrorMessage)
+            if !discoveryErrorDetail.isEmpty {
+                Text(discoveryErrorDetail)
+            }
         }
     }
     
     // MARK: - Кнопка Save в навбаре
 
-    /// Приглушённый тёмно-зелёный для состояния «Saved» —
-    /// символизирует завершённость операции
-    private let savedTint = Color(red: 0.24, green: 0.50, blue: 0.32)
-
-    /// Save в правом верхнем углу. После нажатия на 2,5 секунды
-    /// превращается в «✓ Saved» с приглушённой заливкой — реакция на каждое нажатие
+    /// Save в правом верхнем углу — вид не меняется при нажатии,
+    /// подтверждение показывает отдельный баннер под заголовком
     private var saveToolbarButton: some View {
         Button {
-            // Защита от повторных нажатий, пока показывается «Saved»
-            guard savedNote == nil else { return }
             saveSettings()
         } label: {
-            // Одна кнопка с меняющимся содержимым, без анимации перехода —
-            // иначе Save и Saved на мгновение видны одновременно
-            HStack(spacing: 4) {
-                if savedNote != nil {
-                    Image(systemName: "checkmark")
-                }
-                Text(savedNote != nil ? "Saved" : "Save")
-            }
-            .fontWeight(.semibold)
-            // Шире по горизонтали — прямоугольник, а не овал
-            .padding(.horizontal, 20)
+            Text("Save")
+                .fontWeight(.semibold)
+                // Шире по горизонтали — прямоугольник, а не овал
+                .padding(.horizontal, 20)
         }
-        // Зелёная заливка с белым текстом; «Saved» — приглушённый тёмно-зелёный;
-        // при блокировке — системно-серая
         .buttonStyle(.borderedProminent)
         .buttonBorderShape(.roundedRectangle(radius: 6))
-        .tint(savedNote != nil ? savedTint : .green)
+        .tint(.green)
         .disabled(isDiscovering)
     }
 
@@ -289,7 +304,11 @@ struct SettingsView: View {
     }
     
     // MARK: - Сохранение настроек
-    
+
+    /// Save только сохраняет поля — обновление базы правил больше не
+    /// запускается автоматически (пользователь мог не заметить, что идёт
+    /// сетевой запрос на пару минут, пока Save/Refresh неактивны без
+    /// видимого индикатора). Пользователь жмёт Refresh сам, осознанно
     private func saveSettings() {
         // Нормализуем URL: пользователь может вставить грязную ссылку
         // из браузера (utm-хвосты, «?», слэши) — храним каноничный вид
@@ -302,29 +321,29 @@ struct SettingsView: View {
         UserDefaults.standard.set(newURL, forKey: "settings_website_url")
         UserDefaults.standard.set(requestEmail, forKey: "settings_request_email")
         focusedField = nil
-        
-        // Если URL изменился — сбрасываем кэш и базу правил старого сайта
-        // и запускаем сборку для нового
-        if newURL != previousURL && !newURL.isEmpty {
+
+        // Если URL изменился — сбрасываем кэш и базу правил старого сайта.
+        // Новую сборку запускает только сам пользователь кнопкой Refresh
+        let urlChanged = newURL != previousURL && !newURL.isEmpty
+        if urlChanged {
             storage.clearTargetURLsCache()
             storage.clearSiteRules()
             discoveryResult = nil
-            startDiscovery(for: newURL)
-        } else {
-            showSavedNote()
         }
+
+        showToast(urlChanged ? "Website address updated and saved" : "Settings saved")
     }
 
-    // MARK: - Живое подтверждение сохранения
+    // MARK: - Всплывающий баннер-подтверждение
 
-    /// Переключает кнопку в состояние «✓ Saved» и возвращает через пару секунд.
-    /// Смена мгновенная, без анимации — иначе оба состояния видны одновременно
-    private func showSavedNote() {
-        savedNote = "Settings saved"
+    /// Показывает баннер под заголовком на пару секунд, с анимацией
+    /// появления/исчезновения (see .animation(value: toastMessage) в body)
+    private func showToast(_ message: String) {
+        toastMessage = message
         Task {
             try? await Task.sleep(for: .seconds(2.5))
             await MainActor.run {
-                savedNote = nil
+                toastMessage = nil
             }
         }
     }
@@ -345,12 +364,14 @@ struct SettingsView: View {
                 await MainActor.run {
                     isDiscovering = false
                     updateDiscoveryStatus()
-                    showSavedNote()
+                    showToast("Recycling data refreshed")
                 }
             } catch {
                 await MainActor.run {
                     isDiscovering = false
-                    discoveryErrorMessage = friendlyErrorMessage(from: error)
+                    let friendly = friendlyError(from: error)
+                    discoveryErrorTitle = friendly.title
+                    discoveryErrorDetail = friendly.message
                     showDiscoveryError = true
                 }
             }

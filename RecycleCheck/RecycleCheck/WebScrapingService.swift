@@ -24,7 +24,7 @@ final class WebScrapingService {
             case .invalidURL:
                 return "Invalid website URL"
             case .parsingFailed:
-                return "Failed to read the website content"
+                return "Could not open the website"
             }
         }
     }

@@ -35,7 +35,7 @@ final class RuleExtractionService {
             case .invalidResponse:
                 return "Invalid AI response"
             case .parsingFailed(let detail):
-                return "Failed to parse extracted rules: \(detail)"
+                return "Failed to process the website data: \(detail)"
             }
         }
     }
