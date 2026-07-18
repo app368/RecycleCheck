@@ -74,6 +74,14 @@ final class StorageService {
         history[index].result = result
         saveHistory(history)
     }
+
+    /// Отметка об успешной отправке email-вопроса по id записи (СП5)
+    func markHistoryEmailSent(entryID: UUID) {
+        var history = loadHistory()
+        guard let index = history.firstIndex(where: { $0.id == entryID }) else { return }
+        history[index].emailSent = true
+        saveHistory(history)
+    }
     
     // MARK: - Удаление записей из истории (СП7.3)
     

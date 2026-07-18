@@ -102,7 +102,7 @@ struct ResultView: View {
         // MARK: - Переход к отправке email (СП5)
 
         .navigationDestination(isPresented: $showEmailComposer) {
-            SuggestItemView(item: item)
+            SuggestItemView(item: item, historyEntryID: historyEntryID)
         }
 
         // MARK: - Страница подтверждающего пункта внутри приложения

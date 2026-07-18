@@ -16,7 +16,12 @@ struct MailComposer: UIViewControllerRepresentable {
     
     /// Текст письма
     let body: String
-    
+
+    /// Предпочтительный адрес отправителя (email из профиля пользователя).
+    /// Применяется, только если аккаунт с этим адресом уже настроен
+    /// в Почте на устройстве — iOS не даёт задать From жёстко из кода
+    var preferredSenderEmail: String? = nil
+
     /// Вложения: (данные, MIME-тип, имя файла)
     var attachments: [(Data, String, String)] = []
     
@@ -34,7 +39,14 @@ struct MailComposer: UIViewControllerRepresentable {
         composer.setToRecipients([recipient])
         composer.setSubject(subject)
         composer.setMessageBody(body, isHTML: false)
-        
+
+        // Если на устройстве настроен аккаунт с этим адресом, письмо
+        // отправится именно от него, а не от адреса по умолчанию
+        if let preferredSenderEmail, !preferredSenderEmail.isEmpty {
+            composer.setPreferredSendingEmailAddress(preferredSenderEmail)
+        }
+
+
         // Добавляем вложения (фото предмета)
         for (data, mimeType, fileName) in attachments {
             composer.addAttachmentData(data, mimeType: mimeType, fileName: fileName)
