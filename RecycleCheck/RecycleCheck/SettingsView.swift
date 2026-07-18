@@ -204,7 +204,11 @@ struct SettingsView: View {
                 .padding(.bottom, 8)
 
                 // Баннер-подтверждение сохранения — появляется поверх
-                // контента и сам исчезает, кнопка Save при этом не меняется
+                // контента и сам исчезает, кнопка Save при этом не меняется.
+                // Анимация — только на самом баннере, не на всей Form,
+                // иначе она может задевать другие изменения состояния
+                // (например, индикатор Refresh), если они происходят
+                // близко по времени
                 if let toastMessage {
                     Label(toastMessage, systemImage: "checkmark.circle.fill")
                         .font(.subheadline)
@@ -214,11 +218,11 @@ struct SettingsView: View {
                         .padding(.vertical, 10)
                         .background(.green)
                         .transition(.move(edge: .top).combined(with: .opacity))
+                        .animation(.easeInOut(duration: 0.25), value: toastMessage)
                 }
             }
             .background(Color(.systemGroupedBackground))
         }
-        .animation(.easeInOut(duration: 0.25), value: toastMessage)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

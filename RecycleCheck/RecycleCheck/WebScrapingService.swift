@@ -9,7 +9,10 @@ import Foundation
 
 final class WebScrapingService {
 
-    static let shared = WebScrapingService()
+    // nonisolated — вся работа этого сервиса (сеть, парсинг) не должна
+    // выполняться на главном потоке; проект по умолчанию изолирует всё
+    // на MainActor (SWIFT_DEFAULT_ACTOR_ISOLATION), это явное исключение
+    nonisolated static let shared = WebScrapingService()
 
     private init() {}
 
@@ -32,7 +35,7 @@ final class WebScrapingService {
     // MARK: - Загрузка HTML-страницы
 
     /// Загружает HTML-контент по указанному URL.
-    func fetchPage(urlString: String) async throws -> String {
+    nonisolated func fetchPage(urlString: String) async throws -> String {
         guard let url = URL(string: urlString) else {
             throw ScrapingError.invalidURL
         }

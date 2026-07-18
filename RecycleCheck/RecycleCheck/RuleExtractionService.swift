@@ -14,7 +14,7 @@ import Foundation
 
 final class RuleExtractionService {
 
-    static let shared = RuleExtractionService()
+    nonisolated static let shared = RuleExtractionService()
 
     private init() {}
 
@@ -48,7 +48,7 @@ final class RuleExtractionService {
     ///   - pageURL: URL страницы (попадает в origin пунктов)
     /// - Returns: пункты с дословными цитатами; пустой массив,
     ///   если нормативных правил на странице нет
-    func extractRules(fromHTML html: String, pageURL: String) async throws -> [RuleEntry] {
+    nonisolated func extractRules(fromHTML html: String, pageURL: String) async throws -> [RuleEntry] {
 
         // Извлекаем блоки контента
         let blocks = PageContentExtractor.extractBlocks(from: html)
@@ -70,7 +70,7 @@ final class RuleExtractionService {
 
     // MARK: - Промпт экстрактора (стендовая версия v2)
 
-    private func buildPrompt(pageContent: String, pageURL: String) -> String {
+    private nonisolated func buildPrompt(pageContent: String, pageURL: String) -> String {
         """
         You are extracting recycling rules from one page of a recycling website into a structured database.
 
@@ -120,7 +120,7 @@ final class RuleExtractionService {
 
     /// Отправляет промпт в Claude API и возвращает сырой текстовый ответ.
     /// max_tokens = 16000: страница со множеством списков даёт до ~60 пунктов
-    private func sendRequest(prompt: String) async throws -> String {
+    private nonisolated func sendRequest(prompt: String) async throws -> String {
         guard let url = URL(string: AppConfig.visionAPIEndpoint) else {
             throw ExtractionError.apiRequestFailed("Invalid API endpoint")
         }
@@ -195,7 +195,7 @@ final class RuleExtractionService {
     }
 
     /// Очищает ответ от возможных markdown-обёрток и парсит массив пунктов
-    private func parseEntries(from rawText: String) throws -> [RawEntry] {
+    private nonisolated func parseEntries(from rawText: String) throws -> [RawEntry] {
         let cleaned = rawText
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "```json", with: "")
@@ -221,7 +221,7 @@ final class RuleExtractionService {
     /// цитата обязана быть дословной подстрокой одного из блоков страницы,
     /// enum-поля — иметь известные значения. Ошибки уходят в безопасный исход:
     /// отброшенный пункт означает «информации нет», а не ложный вердикт
-    private func makeVerifiedEntries(
+    private nonisolated func makeVerifiedEntries(
         from rawEntries: [RawEntry],
         blocks: [ContentBlock],
         pageURL: String

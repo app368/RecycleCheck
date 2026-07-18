@@ -7,8 +7,10 @@ import Foundation
 // Возвращает список URL страниц, на которых можно искать информацию о предметах.
 
 final class LinkDiscoveryService {
-    
-    static let shared = LinkDiscoveryService()
+
+    // nonisolated — работа сервиса (сеть, парсинг, вызовы AI) не должна
+    // выполняться на главном потоке, см. WebScrapingService
+    nonisolated static let shared = LinkDiscoveryService()
     
     private init() {}
     
@@ -50,7 +52,7 @@ final class LinkDiscoveryService {
     /// Основной метод: загружает сайт, собирает ссылки, фильтрует, возвращает целевые URL.
     /// - Parameter baseURLString: URL главной страницы сайта
     /// - Returns: массив URL целевых страниц для поиска (нормализованных, без дублей)
-    func discoverTargetPages(baseURLString rawBaseURLString: String) async throws -> [String] {
+    nonisolated func discoverTargetPages(baseURLString rawBaseURLString: String) async throws -> [String] {
 
         // Приводим базовый URL к каноничному виду — иначе грязный URL
         // из Settings (хвостовой «?», utm-параметры) попадёт в список
@@ -103,7 +105,7 @@ final class LinkDiscoveryService {
     // MARK: - Извлечение ссылок из HTML
     
     /// Парсит HTML и извлекает все URL из тегов <a href="...">.
-    private func extractLinks(from html: String, baseURL: URL, host: String) -> [String] {
+    private nonisolated func extractLinks(from html: String, baseURL: URL, host: String) -> [String] {
         var links: Set<String> = []
         
         // Regex для поиска href в тегах <a>
@@ -150,7 +152,7 @@ final class LinkDiscoveryService {
     // MARK: - Жёсткая фильтрация (Уровень 1)
     
     /// Отсекает очевидно нерелевантные ссылки по правилам.
-    private func hardFilter(links: [String], host: String, baseURL: URL) -> [String] {
+    private nonisolated func hardFilter(links: [String], host: String, baseURL: URL) -> [String] {
         return links.filter { link in
             guard let url = URL(string: link) else { return false }
             let path = url.path.lowercased()
@@ -187,7 +189,7 @@ final class LinkDiscoveryService {
     
     /// Отправляет список ссылок в Claude API для умной классификации.
     /// AI определяет, какие страницы содержат информацию о предметах для переработки.
-    private func aiFilter(links: [String], baseURLString: String) async throws -> [String] {
+    private nonisolated func aiFilter(links: [String], baseURLString: String) async throws -> [String] {
         
         // Формируем список путей для отправки в AI (без полных URL — экономим токены)
         let paths = links.compactMap { link -> String? in

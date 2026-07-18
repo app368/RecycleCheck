@@ -11,7 +11,7 @@ import Foundation
 
 final class SiteRulesBuilder {
 
-    static let shared = SiteRulesBuilder()
+    nonisolated static let shared = SiteRulesBuilder()
 
     private init() {}
 
@@ -33,7 +33,7 @@ final class SiteRulesBuilder {
     /// Полный цикл сборки: дискавери → извлечение → слияние → сохранение.
     /// - Parameter baseURLString: базовый URL сайта переработки
     /// - Returns: собранная база правил (уже сохранена в StorageService)
-    func buildRules(baseURLString: String) async throws -> SiteRules {
+    nonisolated func buildRules(baseURLString: String) async throws -> SiteRules {
         let baseURL = URLNormalizer.normalize(baseURLString)
 
         // MARK: Дискавери страниц со списками правил (П2.1)

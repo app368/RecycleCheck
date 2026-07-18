@@ -5,7 +5,9 @@ import Foundation
 // URL сайта и email можно изменить на экране Settings.
 // Значения по умолчанию задаёт программист здесь.
 
-enum AppConfig {
+// nonisolated — читается и из MainActor-кода (экраны), и из фоновых
+// сервисов конвейера Refresh; значения не связаны с UI-состоянием
+nonisolated enum AppConfig {
     
     // MARK: - Значения по умолчанию
     

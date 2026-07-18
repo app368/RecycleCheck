@@ -14,7 +14,7 @@ import Foundation
 /// «NO window glass or mirrors» → .notAllowed.
 /// База охватывает только переработку (recycling); компост и мусор —
 /// отдельная задача, в базу не попадают
-enum RuleVerdict: String, Codable, Equatable {
+nonisolated enum RuleVerdict: String, Codable, Equatable {
     case allowed
     case notAllowed = "not_allowed"
 }
@@ -23,7 +23,7 @@ enum RuleVerdict: String, Codable, Equatable {
 
 /// В какой форме пункт был представлен на странице.
 /// Нужна для оценки надёжности извлечения и отладки экстрактора
-enum RuleSourceForm: String, Codable, Equatable {
+nonisolated enum RuleSourceForm: String, Codable, Equatable {
     /// Элемент списка (li)
     case list
     /// Предложение из прозы
@@ -37,7 +37,7 @@ enum RuleSourceForm: String, Codable, Equatable {
 /// Происхождение пункта — дословная цитата и её координаты на сайте.
 /// Подтверждение вердикта для пользователя строится из этих полей
 /// (пункт + секция), ссылка Source ведёт на pageURL
-struct RuleOrigin: Codable, Equatable {
+nonisolated struct RuleOrigin: Codable, Equatable {
     /// Дословная цитата с сайта, из которой извлечён пункт
     let quote: String
 
@@ -58,7 +58,7 @@ struct RuleOrigin: Codable, Equatable {
 /// что разрешено или запрещено класть в конкретный поток.
 /// Экстрактор консервативен: пункт создаётся только если из одной цитаты
 /// можно ответить «класть ли X в бак?»; пояснения-«почему» пунктами не становятся
-struct RuleEntry: Codable, Identifiable, Equatable {
+nonisolated struct RuleEntry: Codable, Identifiable, Equatable {
     let id: UUID
 
     /// Материал, к которому относится пункт (glass, plastic, paper...);
@@ -105,7 +105,7 @@ struct RuleEntry: Codable, Identifiable, Equatable {
 
 /// База правил сайта — результат конвейера «Refresh source pages».
 /// Хранится локально (StorageService), пересобирается кнопкой Refresh
-struct SiteRules: Codable, Equatable {
+nonisolated struct SiteRules: Codable, Equatable {
     /// Нормализованный базовый URL сайта, для которого собрана база
     let baseURL: String
 

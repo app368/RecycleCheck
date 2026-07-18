@@ -27,7 +27,8 @@ struct ContentBlock: Equatable {
     let text: String
 }
 
-final class PageContentExtractor {
+// nonisolated — только static-утилиты парсинга, без UI-состояния
+nonisolated final class PageContentExtractor {
 
     // MARK: - Настройки разбора
 
@@ -55,7 +56,7 @@ final class PageContentExtractor {
     /// Разбор — конечный автомат по токенам «тег / текст между тегами»:
     /// закрывающие теги не несут атрибутов, поэтому пропуск контейнера
     /// с role="navigation" ведётся подсчётом одноимённых вложенных тегов
-    static func extractBlocks(from html: String) -> [ContentBlock] {
+    nonisolated static func extractBlocks(from html: String) -> [ContentBlock] {
         // Комментарии убираем заранее — внутри них попадаются теги
         let cleanedHTML = removeComments(from: html)
 
@@ -173,7 +174,7 @@ final class PageContentExtractor {
 
     /// Текст страницы для промпта экстрактора: секции + помеченные блоки.
     /// Формат согласован с промптом RuleExtractionService
-    static func renderForPrompt(_ blocks: [ContentBlock]) -> String {
+    nonisolated static func renderForPrompt(_ blocks: [ContentBlock]) -> String {
         var lines: [String] = []
         for block in blocks {
             switch block.type {
@@ -193,7 +194,7 @@ final class PageContentExtractor {
     // MARK: - Вспомогательные методы
 
     /// Удаляет HTML-комментарии
-    private static func removeComments(from html: String) -> String {
+    private nonisolated static func removeComments(from html: String) -> String {
         guard let regex = try? NSRegularExpression(pattern: "<!--[\\s\\S]*?-->") else { return html }
         return regex.stringByReplacingMatches(
             in: html,
@@ -203,7 +204,7 @@ final class PageContentExtractor {
     }
 
     /// Достаёт значение атрибута из строки атрибутов тега
-    private static func attributeValue(_ name: String, in attrs: String) -> String? {
+    private nonisolated static func attributeValue(_ name: String, in attrs: String) -> String? {
         let pattern = "\(name)\\s*=\\s*[\"']([^\"']*)[\"']"
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
               let match = regex.firstMatch(in: attrs, range: NSRange(attrs.startIndex..., in: attrs)),
@@ -216,7 +217,7 @@ final class PageContentExtractor {
     /// Декодирует HTML-сущности: именованные (включая типографские)
     /// и числовые (&#8217; и &#x2019;). Цитаты пунктов показываются
     /// пользователю — сущности в них недопустимы
-    private static func decodeEntities(_ text: String) -> String {
+    private nonisolated static func decodeEntities(_ text: String) -> String {
         var result = text
             .replacingOccurrences(of: "&lt;", with: "<")
             .replacingOccurrences(of: "&gt;", with: ">")
@@ -255,7 +256,7 @@ final class PageContentExtractor {
     }
 
     /// Сжимает пробельные символы и обрезает края
-    private static func normalizeWhitespace(_ text: String) -> String {
+    private nonisolated static func normalizeWhitespace(_ text: String) -> String {
         guard let regex = try? NSRegularExpression(pattern: "\\s+") else { return text }
         return regex.stringByReplacingMatches(
             in: text,

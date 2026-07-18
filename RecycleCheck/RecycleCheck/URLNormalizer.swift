@@ -5,7 +5,9 @@ import Foundation
 // Устраняет дубли целевых страниц в кэше (".../recycling?" против ".../recycling"),
 // из-за которых одна и та же страница попадала в обработку дважды.
 
-enum URLNormalizer {
+// nonisolated — чистая функция без состояния, используется и из
+// MainActor-кода (SettingsView), и из фоновых сервисов конвейера Refresh
+nonisolated enum URLNormalizer {
 
     /// Приводит URL к каноничному виду:
     /// — обрезает пробелы по краям;
