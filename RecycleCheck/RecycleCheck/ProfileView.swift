@@ -13,6 +13,9 @@ struct ProfileView: View {
     /// Алерт подтверждения очистки данных профиля
     @State private var showClearAlert = false
 
+    /// Подсказка у заголовка Email — про автоподстановку отправителя
+    @State private var showEmailHint = false
+
     /// Фокус для управления клавиатурой
     @FocusState private var focusedField: Field?
 
@@ -80,8 +83,29 @@ struct ProfileView: View {
                 Text("Email")
                     .fontWeight(.bold)
             } footer: {
-                Text("These two fields are optional. They can be used to send messages to the source website and receive responses.")
-                    .font(.subheadline)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("These two fields are optional. They can be used to send messages to the source website and receive responses.")
+                        .font(.subheadline)
+
+                    Button {
+                        showEmailHint = true
+                    } label: {
+                        Label("How the sender address works", systemImage: "info.circle")
+                            .font(.subheadline)
+                    }
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $showEmailHint) {
+                        Text("If this address is already set up as an account in the Mail app, it will be used automatically as the sender when you send a question. Otherwise, you'll need to enter the sender address manually.")
+                            .font(.subheadline)
+                            .multilineTextAlignment(.leading)
+                            .padding()
+                            .frame(width: 260)
+                            // Без fixedSize popover не досчитывает высоту
+                            // под перенесённый текст и обрезает его
+                            .fixedSize(horizontal: false, vertical: true)
+                            .presentationCompactAdaptation(.popover)
+                    }
+                }
             }
 
             // MARK: - Кнопка очистки данных — отделена от пояснительного
