@@ -11,22 +11,19 @@ struct SettingsView: View {
     @State private var websiteURL: String = ""
     @State private var requestEmail: String = ""
 
-    /// Всплывающий баннер (подтверждение — зелёный, ошибка — красный).
-    /// Заменяет и смену текста кнопки Save на «Saved», и системный
-    /// .alert для ошибок Refresh — модальный алерт на этом экране
-    /// после закрытия оставлял Form в состоянии, где ProgressView
-    /// индикатора при следующем Refresh не появлялся на экране (баг
-    /// подтверждён отдельным тестом, причина не выяснена — обходим)
-    @State private var toast: Toast?
+    /// Всплывающий зелёный баннер-подтверждение (вместо смены текста
+    /// кнопки Save на «Saved»)
+    @State private var toastMessage: String?
 
-    private struct Toast: Equatable {
-        let message: String
-        let isError: Bool
-    }
-
-    /// Состояние обнаружения целевых страниц
+    /// Состояние обнаружения целевых страниц. Индикатор загрузки —
+    /// отдельный оверлей поверх всего экрана (см. body), не часть Form —
+    /// раньше он жил внутри Section и зависел от соседних состояний
+    /// (текст поля, баннер, алерт), из-за чего иногда не показывался
     @State private var isDiscovering = false
     @State private var discoveryResult: String?
+    @State private var showDiscoveryError = false
+    @State private var discoveryErrorTitle: String = ""
+    @State private var discoveryErrorDetail: String = ""
 
 
     /// Фокус для управления клавиатурой
@@ -124,21 +121,7 @@ struct SettingsView: View {
 
             if !websiteURL.isEmpty {
                 Section {
-                    if isDiscovering {
-                        // Индикатор прогресса обнаружения — заметный, зелёный
-                        // (в тон кнопкам Save/Refresh на этом экране)
-                        HStack(spacing: 12) {
-                            ProgressView()
-                                .controlSize(.large)
-                                .tint(.green)
-                            Text("Reading recycling info...")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.green)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 4)
-                    } else if let result = discoveryResult {
+                    if let result = discoveryResult, !isDiscovering {
                         // Дата последнего получения данных — лёгкая зелёная заливка
                         // самой строки списка (как у текстовых полей), без
                         // вложенной формы поверх карточки секции
@@ -210,23 +193,17 @@ struct SettingsView: View {
                 .padding(.bottom, 8)
 
                 // Баннер-подтверждение сохранения — появляется поверх
-                // контента и сам исчезает, кнопка Save при этом не меняется.
-                // Анимация — только на самом баннере, не на всей Form,
-                // иначе она может задевать другие изменения состояния
-                // (например, индикатор Refresh), если они происходят
-                // близко по времени
-                if let toast {
-                    Label(toast.message, systemImage: toast.isError
-                          ? "exclamationmark.triangle.fill"
-                          : "checkmark.circle.fill")
+                // контента и сам исчезает, кнопка Save при этом не меняется
+                if let toastMessage {
+                    Label(toastMessage, systemImage: "checkmark.circle.fill")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
-                        .background(toast.isError ? .red : .green)
+                        .background(.green)
                         .transition(.move(edge: .top).combined(with: .opacity))
-                        .animation(.easeInOut(duration: 0.25), value: toast)
+                        .animation(.easeInOut(duration: 0.25), value: toastMessage)
                 }
             }
             .background(Color(.systemGroupedBackground))
@@ -250,6 +227,40 @@ struct SettingsView: View {
         }
         .onAppear {
             loadSettings()
+        }
+        // Индикатор загрузки — отдельный слой поверх ВСЕГО экрана,
+        // не часть Form/Section. Единственная зависимость — isDiscovering,
+        // никакие поля, баннеры и алерты на него не влияют
+        .overlay {
+            if isDiscovering {
+                ZStack {
+                    Color.green.opacity(0.12)
+                        .ignoresSafeArea()
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .controlSize(.large)
+                            .tint(.white)
+                        Text("Reading recycling info...")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white)
+                    }
+                    .padding(24)
+                    .background(.green.opacity(0.5))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .shadow(radius: 8)
+                }
+            }
+        }
+        // Без отдельного технического заголовка «Rules update failed» —
+        // первое предложение самого сообщения становится заголовком
+        // алерта, второе (если есть) — телом
+        .alert(discoveryErrorTitle, isPresented: $showDiscoveryError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            if !discoveryErrorDetail.isEmpty {
+                Text(discoveryErrorDetail)
+            }
         }
     }
     
@@ -336,16 +347,16 @@ struct SettingsView: View {
         showToast(urlChanged ? "Website address updated and saved" : "Settings saved")
     }
 
-    // MARK: - Всплывающий баннер
+    // MARK: - Всплывающий баннер-подтверждение
 
-    /// Показывает баннер под заголовком с анимацией появления/исчезновения.
-    /// Ошибки висят дольше обычного подтверждения — их нужно успеть прочитать
-    private func showToast(_ message: String, isError: Bool = false) {
-        toast = Toast(message: message, isError: isError)
+    /// Показывает баннер под заголовком на пару секунд, с анимацией
+    /// появления/исчезновения
+    private func showToast(_ message: String) {
+        toastMessage = message
         Task {
-            try? await Task.sleep(for: .seconds(isError ? 5 : 2.5))
+            try? await Task.sleep(for: .seconds(2.5))
             await MainActor.run {
-                toast = nil
+                toastMessage = nil
             }
         }
     }
@@ -372,10 +383,9 @@ struct SettingsView: View {
                 await MainActor.run {
                     isDiscovering = false
                     let friendly = friendlyError(from: error)
-                    let message = friendly.message.isEmpty
-                        ? friendly.title
-                        : "\(friendly.title). \(friendly.message)"
-                    showToast(message, isError: true)
+                    discoveryErrorTitle = friendly.title
+                    discoveryErrorDetail = friendly.message
+                    showDiscoveryError = true
                 }
             }
         }
