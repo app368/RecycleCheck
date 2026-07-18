@@ -285,24 +285,29 @@ struct SuggestItemView: View {
         return attachments
     }
 
-    /// Уменьшает фото до максимальной стороны 1200pt и сжимает в JPEG —
-    /// достаточно, чтобы предмет был хорошо виден, но без чудовищного
-    /// размера вложения (исходник — полное разрешение камеры)
+    /// Уменьшает фото до максимальной стороны 400pt и сжимает в JPEG —
+    /// ориентир на вариант «Small» из диалога самой Почты (~30 КБ),
+    /// которым обычно и пользуются при отправке
     private func resizedJPEGData(from image: UIImage) -> Data? {
-        let maxSide: CGFloat = 1200
+        let maxSide: CGFloat = 400
         let size = image.size
         let scale = min(1, maxSide / max(size.width, size.height))
 
         guard scale < 1 else {
-            return image.jpegData(compressionQuality: 0.7)
+            return image.jpegData(compressionQuality: 0.5)
         }
 
         let newSize = CGSize(width: size.width * scale, height: size.height * scale)
-        let renderer = UIGraphicsImageRenderer(size: newSize)
+        // scale = 1 — иначе UIGraphicsImageRenderer рендерит с масштабом
+        // экрана устройства (обычно ×3), и итоговое фото получается втрое
+        // крупнее по пикселям, чем задумано в newSize
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
         let resized = renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: newSize))
         }
-        return resized.jpegData(compressionQuality: 0.7)
+        return resized.jpegData(compressionQuality: 0.5)
     }
 }
 
