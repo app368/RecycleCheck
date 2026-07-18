@@ -27,7 +27,7 @@ func friendlyError(from error: Error) -> (title: String, message: String) {
 
     // Сайт не открылся (плохой адрес, сайт лёг, неожиданный формат ответа)
     if error is WebScrapingService.ScrapingError {
-        return ("Could not open the website", "Please check the address.")
+        return ("Website not found", "Please check the address.")
     }
 
     let text = "\(error)"
