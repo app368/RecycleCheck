@@ -11,16 +11,22 @@ struct SettingsView: View {
     @State private var websiteURL: String = ""
     @State private var requestEmail: String = ""
 
-    /// Всплывающий баннер-подтверждение (вместо смены текста кнопки Save
-    /// на «Saved», что выглядело слишком грубо). nil — баннер скрыт
-    @State private var toastMessage: String?
+    /// Всплывающий баннер (подтверждение — зелёный, ошибка — красный).
+    /// Заменяет и смену текста кнопки Save на «Saved», и системный
+    /// .alert для ошибок Refresh — модальный алерт на этом экране
+    /// после закрытия оставлял Form в состоянии, где ProgressView
+    /// индикатора при следующем Refresh не появлялся на экране (баг
+    /// подтверждён отдельным тестом, причина не выяснена — обходим)
+    @State private var toast: Toast?
+
+    private struct Toast: Equatable {
+        let message: String
+        let isError: Bool
+    }
 
     /// Состояние обнаружения целевых страниц
     @State private var isDiscovering = false
     @State private var discoveryResult: String?
-    @State private var showDiscoveryError = false
-    @State private var discoveryErrorTitle: String = ""
-    @State private var discoveryErrorDetail: String = ""
 
 
     /// Фокус для управления клавиатурой
@@ -209,16 +215,18 @@ struct SettingsView: View {
                 // иначе она может задевать другие изменения состояния
                 // (например, индикатор Refresh), если они происходят
                 // близко по времени
-                if let toastMessage {
-                    Label(toastMessage, systemImage: "checkmark.circle.fill")
+                if let toast {
+                    Label(toast.message, systemImage: toast.isError
+                          ? "exclamationmark.triangle.fill"
+                          : "checkmark.circle.fill")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
-                        .background(.green)
+                        .background(toast.isError ? .red : .green)
                         .transition(.move(edge: .top).combined(with: .opacity))
-                        .animation(.easeInOut(duration: 0.25), value: toastMessage)
+                        .animation(.easeInOut(duration: 0.25), value: toast)
                 }
             }
             .background(Color(.systemGroupedBackground))
@@ -242,16 +250,6 @@ struct SettingsView: View {
         }
         .onAppear {
             loadSettings()
-        }
-        // Без отдельного технического заголовка «Rules update failed» —
-        // первое предложение самого сообщения становится заголовком
-        // алерта, второе (если есть) — телом
-        .alert(discoveryErrorTitle, isPresented: $showDiscoveryError) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            if !discoveryErrorDetail.isEmpty {
-                Text(discoveryErrorDetail)
-            }
         }
     }
     
@@ -338,20 +336,20 @@ struct SettingsView: View {
         showToast(urlChanged ? "Website address updated and saved" : "Settings saved")
     }
 
-    // MARK: - Всплывающий баннер-подтверждение
+    // MARK: - Всплывающий баннер
 
-    /// Показывает баннер под заголовком на пару секунд, с анимацией
-    /// появления/исчезновения (see .animation(value: toastMessage) в body)
-    private func showToast(_ message: String) {
-        toastMessage = message
+    /// Показывает баннер под заголовком с анимацией появления/исчезновения.
+    /// Ошибки висят дольше обычного подтверждения — их нужно успеть прочитать
+    private func showToast(_ message: String, isError: Bool = false) {
+        toast = Toast(message: message, isError: isError)
         Task {
-            try? await Task.sleep(for: .seconds(2.5))
+            try? await Task.sleep(for: .seconds(isError ? 5 : 2.5))
             await MainActor.run {
-                toastMessage = nil
+                toast = nil
             }
         }
     }
-    
+
     // MARK: - Запуск конвейера сборки базы правил (П2.4)
 
     /// «Refresh source pages»: дискавери страниц со списками + AI-извлечение
@@ -374,9 +372,10 @@ struct SettingsView: View {
                 await MainActor.run {
                     isDiscovering = false
                     let friendly = friendlyError(from: error)
-                    discoveryErrorTitle = friendly.title
-                    discoveryErrorDetail = friendly.message
-                    showDiscoveryError = true
+                    let message = friendly.message.isEmpty
+                        ? friendly.title
+                        : "\(friendly.title). \(friendly.message)"
+                    showToast(message, isError: true)
                 }
             }
         }
