@@ -21,6 +21,11 @@ struct HistoryView: View {
     
     /// Флаг показа алерта подтверждения удаления выбранных записей
     @State private var showDeleteSelectedAlert = false
+
+    /// В режиме редактирования заголовок явно сообщает о текущем состоянии.
+    private var pageTitle: LocalizedStringKey {
+        editMode == .active ? "Edit History" : "History"
+    }
     
     var body: some View {
         Group {
@@ -32,7 +37,7 @@ struct HistoryView: View {
                 historyListView
             }
         }
-        .pinnedLargeNavigationTitle("History")
+        .pinnedLargeNavigationTitle(pageTitle)
         .toolbar {
             // Edit/Done — только если есть записи. Кастомная кнопка вместо
             // системной EditButton — в общем стиле (зелёная капсула)

@@ -60,6 +60,16 @@ struct CaptureView: View {
 
     private let storage = StorageService.shared
     private let visionService = VisionService.shared
+
+    /// Заголовок отражает текущий этап одного и того же экрана:
+    /// добавление фото, распознавание, затем описание предмета.
+    private var pageTitle: LocalizedStringKey {
+        if recognition?.isApplicable == true {
+            return "Item Description"
+        }
+
+        return capturedImage == nil ? "Take Photo" : "Recognize Item"
+    }
     
     var body: some View {
         ScrollView {
@@ -109,7 +119,7 @@ struct CaptureView: View {
             }
             .padding()
         }
-        .pinnedLargeNavigationTitle("Check an item")
+        .pinnedLargeNavigationTitle(pageTitle)
         .scrollDismissesKeyboard(.interactively)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
