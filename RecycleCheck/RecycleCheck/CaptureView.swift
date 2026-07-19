@@ -109,8 +109,7 @@ struct CaptureView: View {
             }
             .padding()
         }
-        .navigationTitle("Check an item")
-        .navigationBarTitleDisplayMode(.large)
+        .pinnedLargeNavigationTitle("Check an item")
         .scrollDismissesKeyboard(.interactively)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {

@@ -101,8 +101,7 @@ struct HistoryDetailView: View {
 
             actionsSection
         }
-        .navigationTitle("Check details")
-        .navigationBarTitleDisplayMode(.inline)
+        .pinnedLargeNavigationTitle("Check details")
 
         // MARK: - Переход к отправке email (СП5)
 

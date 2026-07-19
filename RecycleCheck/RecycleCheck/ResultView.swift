@@ -71,9 +71,7 @@ struct ResultView: View {
 
             actionsSection
         }
-        .navigationTitle("Result")
-        // Крупный заголовок страницы — как на экране «Check an item»
-        .navigationBarTitleDisplayMode(.large)
+        .pinnedLargeNavigationTitle("Result")
 
         // MARK: - «Done» в правом верхнем углу — возврат на главный экран
 

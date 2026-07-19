@@ -190,38 +190,21 @@ struct SettingsView: View {
                     .padding(.top, 14)
             }
         }
-        // Свой закреплённый заголовок вместо системного large title,
-        // который сворачивается при скролле
-        .safeAreaInset(edge: .top, spacing: 0) {
-            VStack(spacing: 0) {
-                HStack {
-                    Text("Settings")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 4)
-                .padding(.bottom, 8)
-
-                // Баннер-подтверждение сохранения — появляется поверх
-                // контента и сам исчезает, кнопка Save при этом не меняется
-                if let toastMessage {
-                    Label(toastMessage, systemImage: "checkmark.circle.fill")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(.green)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .animation(.easeInOut(duration: 0.25), value: toastMessage)
-                }
+        .pinnedLargeNavigationTitle("Settings") {
+            // Баннер-подтверждение сохранения — появляется под заголовком
+            // и сам исчезает, кнопка Save при этом не меняется.
+            if let toastMessage {
+                Label(toastMessage, systemImage: "checkmark.circle.fill")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(.green)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .animation(.easeInOut(duration: 0.25), value: toastMessage)
             }
-            .background(Color(.systemGroupedBackground))
         }
-        .navigationTitle("")
-        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             // Save — в навбаре справа, закреплена и не уезжает при скролле.
             // Всегда одинаковый вид — подтверждение показывает баннер выше

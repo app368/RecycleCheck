@@ -57,8 +57,7 @@ struct SuggestItemView: View {
             }
             .padding()
         }
-        .navigationTitle("Question about")
-        .navigationBarTitleDisplayMode(.large)
+        .pinnedLargeNavigationTitle("Question about")
         .scrollDismissesKeyboard(.interactively)
         .onAppear {
             if emailBody.isEmpty {

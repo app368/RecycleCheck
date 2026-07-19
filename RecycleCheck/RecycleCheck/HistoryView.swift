@@ -32,8 +32,7 @@ struct HistoryView: View {
                 historyListView
             }
         }
-        .navigationTitle("History")
-        .navigationBarTitleDisplayMode(.large)
+        .pinnedLargeNavigationTitle("History")
         .toolbar {
             // Edit/Done — только если есть записи. Кастомная кнопка вместо
             // системной EditButton — в общем стиле (зелёная капсула)

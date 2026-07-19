@@ -130,8 +130,7 @@ struct ProfileView: View {
                 }
             }
         }
-        .navigationTitle("Profile")
-        .navigationBarTitleDisplayMode(.large)
+        .pinnedLargeNavigationTitle("Profile")
         // Скрываем системную стрелку «назад» — она дублирует Cancel
         // (оба варианта закрывают экран без сохранения)
         .navigationBarBackButtonHidden(true)
