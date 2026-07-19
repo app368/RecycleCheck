@@ -238,8 +238,14 @@ final class StorageService {
         guard let data = try? Data(contentsOf: siteRulesFileURL) else { return nil }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        guard let rules = try? decoder.decode(SiteRules.self, from: data),
-              URLNormalizer.normalize(rules.baseURL) == URLNormalizer.normalize(baseURL) else {
+        guard let rules = try? decoder.decode(SiteRules.self, from: data) else {
+            return nil
+        }
+
+        let normalizedBaseURL = URLNormalizer.normalize(baseURL)
+        let normalizedProcessedPages = rules.processedPages.map(URLNormalizer.normalize)
+        guard URLNormalizer.normalize(rules.baseURL) == normalizedBaseURL,
+              normalizedProcessedPages == [normalizedBaseURL] else {
             return nil
         }
         return rules

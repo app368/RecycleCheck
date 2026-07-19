@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - База правил сайта (списочная архитектура, П1)
 // Модели структурированной базы правил, извлечённой с сайта переработки
-// конвейером «Refresh source pages»: дискавери страниц со списками
+// конвейером «Update recycling data»: загрузка указанной страницы
 // + AI-извлечение структуры (П2).
 // Вердикт по предмету строится матчингом против этой базы (П3),
 // без чтения страниц сайта в момент проверки.
@@ -103,8 +103,8 @@ nonisolated struct RuleEntry: Codable, Identifiable, Equatable {
 
 // MARK: - База правил сайта
 
-/// База правил сайта — результат конвейера «Refresh source pages».
-/// Хранится локально (StorageService), пересобирается кнопкой Refresh
+/// База правил сайта — результат конвейера «Update recycling data».
+/// Хранится локально (StorageService), пересобирается кнопкой Update
 nonisolated struct SiteRules: Codable, Equatable {
     /// Нормализованный базовый URL сайта, для которого собрана база
     let baseURL: String

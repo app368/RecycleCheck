@@ -10,7 +10,7 @@ struct ContentView: View {
     @State private var showCapture = false
 
     /// true, если база правил сайта ещё не собрана (первый запуск —
-    /// подсказка сходить в Settings и нажать Refresh)
+    /// подсказка сходить в Settings и нажать Update)
     @State private var needsFirstRefresh = false
 
     var body: some View {
@@ -105,7 +105,7 @@ struct ContentView: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(.orange)
 
-            Text("To start checking items, open Settings and tap \"Refresh source pages\" at the bottom of the page. This loads the recycling data from the source website.")
+            Text("To start checking items, open Settings and tap \"Update recycling data\" at the bottom of the page. This loads the recycling data from the source website.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }

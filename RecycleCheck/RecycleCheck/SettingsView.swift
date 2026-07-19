@@ -3,8 +3,7 @@ import SwiftUI
 // MARK: - Экран настроек
 // Пользователь может указать URL сайта переработки
 // и email для отправки запросов.
-// При сохранении нового URL автоматически запускается
-// обнаружение целевых страниц (СП3.1).
+// База правил обновляется вручную с единственной указанной страницы.
 
 struct SettingsView: View {
     
@@ -15,15 +14,15 @@ struct SettingsView: View {
     /// кнопки Save на «Saved»)
     @State private var toastMessage: String?
 
-    /// Состояние обнаружения целевых страниц. Индикатор загрузки —
+    /// Состояние обновления данных. Индикатор загрузки —
     /// отдельный оверлей поверх всего экрана (см. body), не часть Form —
     /// раньше он жил внутри Section и зависел от соседних состояний
     /// (текст поля, баннер, алерт), из-за чего иногда не показывался
-    @State private var isDiscovering = false
-    @State private var discoveryResult: String?
-    @State private var showDiscoveryError = false
-    @State private var discoveryErrorTitle: String = ""
-    @State private var discoveryErrorDetail: String = ""
+    @State private var isUpdating = false
+    @State private var updateResult: String?
+    @State private var showUpdateError = false
+    @State private var updateErrorTitle: String = ""
+    @State private var updateErrorDetail: String = ""
 
 
     /// Фокус для управления клавиатурой
@@ -119,11 +118,11 @@ struct SettingsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             
-            // MARK: - Секция обнаружения страниц: статус кэша + Refresh
+            // MARK: - Секция обновления данных
 
             if !websiteURL.isEmpty {
                 Section {
-                    if let result = discoveryResult, !isDiscovering {
+                    if let result = updateResult, !isUpdating {
                         // Дата последнего получения данных — лёгкая зелёная заливка
                         // самой строки списка (как у текстовых полей), без
                         // вложенной формы поверх карточки секции
@@ -136,21 +135,21 @@ struct SettingsView: View {
                         }
                         .listRowBackground(Color.green.opacity(0.08))
                     } else {
-                        Text("No data yet. Tap Refresh below to load it.")
+                        Text("No data yet. Tap Update below to load it.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
 
-                    // Принудительное обновление кэша без смены URL.
+                    // Принудительное обновление данных без смены URL.
                     // Скрываем клавиатуру — иначе секция с индикатором
                     // может оказаться под ней, и пользователь решит, что
                     // приложение зависло
                     Button {
                         focusedField = nil
-                        startDiscovery(for: AppConfig.recyclingWebsiteURL)
+                        startUpdate(for: AppConfig.recyclingWebsiteURL)
                     } label: {
                         // Яркая зелёная заливка — как кнопка Save
-                        Label("Refresh source pages", systemImage: "arrow.clockwise")
+                        Label("Update recycling data", systemImage: "arrow.clockwise")
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
@@ -162,7 +161,7 @@ struct SettingsView: View {
                     .buttonStyle(.plain)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                    .disabled(isDiscovering)
+                    .disabled(isUpdating)
                 } header: {
                     Text("Recycling data freshness")
                         .font(.title3)
@@ -170,7 +169,7 @@ struct SettingsView: View {
                         .foregroundStyle(.primary)
                         .textCase(nil)
                 } footer: {
-                    Text("Refresh if the website content has changed. This may take a few minutes.")
+                    Text("Update if the website content has changed. This may take a few minutes.")
                         .font(.subheadline)
                         .italic()
                         .padding(8)
@@ -216,10 +215,10 @@ struct SettingsView: View {
             loadSettings()
         }
         // Индикатор загрузки — отдельный слой поверх ВСЕГО экрана,
-        // не часть Form/Section. Единственная зависимость — isDiscovering,
+        // не часть Form/Section. Единственная зависимость — isUpdating,
         // никакие поля, баннеры и алерты на него не влияют
         .overlay {
-            if isDiscovering {
+            if isUpdating {
                 ZStack {
                     Color.green.opacity(0.12)
                         .ignoresSafeArea()
@@ -227,7 +226,7 @@ struct SettingsView: View {
                         ProgressView()
                             .controlSize(.large)
                             .tint(.white)
-                        Text("Reading recycling info...")
+                        Text("Updating recycling data...")
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .foregroundStyle(.white)
@@ -242,11 +241,11 @@ struct SettingsView: View {
         // Без отдельного технического заголовка «Rules update failed» —
         // первое предложение самого сообщения становится заголовком
         // алерта, второе (если есть) — телом
-        .alert(discoveryErrorTitle, isPresented: $showDiscoveryError) {
+        .alert(updateErrorTitle, isPresented: $showUpdateError) {
             Button("OK", role: .cancel) { }
         } message: {
-            if !discoveryErrorDetail.isEmpty {
-                Text(discoveryErrorDetail)
+            if !updateErrorDetail.isEmpty {
+                Text(updateErrorDetail)
             }
         }
     }
@@ -284,7 +283,7 @@ struct SettingsView: View {
         .buttonStyle(.borderedProminent)
         .buttonBorderShape(.roundedRectangle(radius: 6))
         .tint(.green)
-        .disabled(isDiscovering)
+        .disabled(isUpdating)
     }
 
     // MARK: - Загрузка текущих настроек
@@ -292,7 +291,7 @@ struct SettingsView: View {
     private func loadSettings() {
         websiteURL = AppConfig.recyclingWebsiteURL
         requestEmail = AppConfig.requestEmail
-        updateDiscoveryStatus()
+        updateDataStatus()
     }
 
     // MARK: - Статус данных о переработке
@@ -300,32 +299,22 @@ struct SettingsView: View {
     // не количество страниц/правил — это деталь под капотом
 
     /// Собирает строку статуса: дата последнего сбора данных
-    private func updateDiscoveryStatus() {
+    private func updateDataStatus() {
         // База правил (списочная архитектура)
         if let rules = storage.loadSiteRules(forBaseURL: AppConfig.recyclingWebsiteURL) {
-            discoveryResult = "The app fetched this data from the source website on \(rules.builtAt.formatted(date: .abbreviated, time: .omitted))"
+            updateResult = "The app fetched this data from the source website on \(rules.builtAt.formatted(date: .abbreviated, time: .omitted))"
             return
         }
 
-        // База ещё не собрана — показываем состояние старого кэша
-        guard let cached = storage.loadTargetURLs(forBaseURL: AppConfig.recyclingWebsiteURL),
-              !cached.isEmpty else {
-            discoveryResult = nil
-            return
-        }
-        if let date = storage.targetURLsCacheDate() {
-            discoveryResult = "The app fetched this data from the source website on \(date.formatted(date: .abbreviated, time: .omitted))"
-        } else {
-            discoveryResult = nil
-        }
+        updateResult = nil
     }
     
     // MARK: - Сохранение настроек
 
     /// Save только сохраняет поля — обновление базы правил больше не
     /// запускается автоматически (пользователь мог не заметить, что идёт
-    /// сетевой запрос на пару минут, пока Save/Refresh неактивны без
-    /// видимого индикатора). Пользователь жмёт Refresh сам, осознанно
+    /// сетевой запрос на пару минут, пока Save/Update неактивны без
+    /// видимого индикатора). Пользователь жмёт Update сам, осознанно
     private func saveSettings() {
         // Нормализуем URL: пользователь может вставить грязную ссылку
         // из браузера (utm-хвосты, «?», слэши) — храним каноничный вид
@@ -340,12 +329,12 @@ struct SettingsView: View {
         focusedField = nil
 
         // Если URL изменился — сбрасываем кэш и базу правил старого сайта.
-        // Новую сборку запускает только сам пользователь кнопкой Refresh
+        // Новую сборку запускает только сам пользователь кнопкой Update
         let urlChanged = newURL != previousURL && !newURL.isEmpty
         if urlChanged {
             storage.clearTargetURLsCache()
             storage.clearSiteRules()
-            discoveryResult = nil
+            updateResult = nil
         }
 
         showToast(urlChanged ? "Website address updated and saved" : "Settings saved")
@@ -367,11 +356,11 @@ struct SettingsView: View {
 
     // MARK: - Запуск конвейера сборки базы правил (П2.4)
 
-    /// «Refresh source pages»: дискавери страниц со списками + AI-извлечение
-    /// пунктов + сохранение базы. Кэш целевых URL сохраняется внутри конвейера
-    private func startDiscovery(for urlString: String) {
-        isDiscovering = true
-        discoveryResult = nil
+    /// «Update recycling data»: загрузка указанной страницы,
+    /// AI-извлечение пунктов и сохранение базы.
+    private func startUpdate(for urlString: String) {
+        isUpdating = true
+        updateResult = nil
 
         Task {
             do {
@@ -379,17 +368,17 @@ struct SettingsView: View {
                     .buildRules(baseURLString: urlString)
 
                 await MainActor.run {
-                    isDiscovering = false
-                    updateDiscoveryStatus()
-                    showToast("Recycling data refreshed")
+                    isUpdating = false
+                    updateDataStatus()
+                    showToast("Recycling data updated")
                 }
             } catch {
                 await MainActor.run {
-                    isDiscovering = false
+                    isUpdating = false
                     let friendly = friendlyError(from: error)
-                    discoveryErrorTitle = friendly.title
-                    discoveryErrorDetail = friendly.message
-                    showDiscoveryError = true
+                    updateErrorTitle = friendly.title
+                    updateErrorDetail = friendly.message
+                    showUpdateError = true
                 }
             }
         }
