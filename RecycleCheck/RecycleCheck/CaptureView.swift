@@ -342,14 +342,15 @@ struct CaptureView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 8)
 
-            // Retake — под подсказкой, в правом углу:
-            // фото остаётся, распознавание описания повторяется
+            // Повторное распознавание — по центру под подсказкой:
+            // фото остаётся, прежнее описание заменяется новым
             HStack {
                 Spacer()
                 Button {
                     recognition = nil
+                    startRecognition()
                 } label: {
-                    Text("Retake")
+                    Text("Recognize Again")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.white)
@@ -358,6 +359,7 @@ struct CaptureView: View {
                         .background(accent)
                         .clipShape(Capsule())
                 }
+                Spacer()
             }
 
             // Поле: Материал
