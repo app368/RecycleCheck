@@ -166,14 +166,14 @@ struct CaptureView: View {
                 }
             }
             
-            // Кнопка сброса — позволяет начать заново.
+            // Кнопка замены фото — возвращает к выбору камеры или галереи.
             // Сиреневая капсула с белым текстом (как Done на экране результата)
             if recognition != nil || capturedImage != nil {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         resetAll()
                     } label: {
-                        Text("Reset")
+                        Text("Replace Photo")
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .foregroundStyle(.white)
@@ -241,20 +241,6 @@ struct CaptureView: View {
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(.secondary.opacity(0.3), lineWidth: 1)
                     )
-                    // Кнопка смены фото — только до распознавания
-                    .overlay(alignment: .topTrailing) {
-                        if recognition == nil && !isRecognizing {
-                            Button {
-                                capturedImage = nil
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.title2)
-                                    .symbolRenderingMode(.palette)
-                                    .foregroundStyle(.white, .black.opacity(0.5))
-                            }
-                            .padding(8)
-                        }
-                    }
             } else {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(.gray.opacity(0.1))
