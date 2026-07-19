@@ -75,7 +75,8 @@ struct HistoryDetailView: View {
                 .overlay(alignment: .bottomTrailing) {
                     ScrollJumpButton(
                         isAtBottom: isAtBottom,
-                        tint: statusColor
+                        tint: statusColor,
+                        visualOpacity: 0.5
                     ) {
                         withAnimation {
                             proxy.scrollTo(

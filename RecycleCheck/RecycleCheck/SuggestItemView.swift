@@ -30,32 +30,61 @@ struct SuggestItemView: View {
     
     /// Фокус для управления клавиатурой
     @FocusState private var isCommentFocused: Bool
+
+    /// Якоря и состояние общей плавающей кнопки прокрутки
+    private let topAnchorID = "question-top"
+    private let bottomAnchorID = "question-bottom"
+    @State private var isAtBottom = false
     
     @Environment(\.dismiss) private var dismiss
     
     private let storage = StorageService.shared
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 20) {
 
-                // MARK: - Превью предмета (фото + описание, сразу первым блоком)
+                    // MARK: - Превью предмета (фото + описание, сразу первым блоком)
 
-                itemPreview
+                    itemPreview
+                        .id(topAnchorID)
 
-                // MARK: - Текст письма (редактируемый, с готовой заготовкой)
+                    // MARK: - Текст письма (редактируемый, с готовой заготовкой)
 
-                emailBodySection
+                    emailBodySection
 
-                // MARK: - Информация об отправке
+                    // MARK: - Информация об отправке
 
-                emailInfoSection
+                    emailInfoSection
 
-                // MARK: - Кнопки действий
+                    // MARK: - Кнопки действий
 
-                actionsSection
+                    actionsSection
+
+                    Color.clear
+                        .frame(height: 12)
+                        .id(bottomAnchorID)
+                        .onScrollVisibilityChange(threshold: 0.5) { visible in
+                            isAtBottom = visible
+                        }
+                }
+                .padding()
             }
-            .padding()
+            .overlay(alignment: .bottomTrailing) {
+                if !isCommentFocused {
+                    ScrollJumpButton(isAtBottom: isAtBottom, tint: .blue) {
+                        withAnimation {
+                            proxy.scrollTo(
+                                isAtBottom ? topAnchorID : bottomAnchorID,
+                                anchor: isAtBottom ? .top : .bottom
+                            )
+                        }
+                    }
+                    .padding(.trailing, 12)
+                    .padding(.bottom, 8)
+                }
+            }
         }
         .pinnedLargeNavigationTitle("Question About")
         .scrollDismissesKeyboard(.interactively)
