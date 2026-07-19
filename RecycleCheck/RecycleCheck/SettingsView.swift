@@ -47,6 +47,7 @@ struct SettingsView: View {
                         .autocorrectionDisabled()
                         .focused($focusedField, equals: .url)
                         .lineLimit(3...5)
+                        .onSubmit { focusedField = nil }
 
                     // Кнопка очистки поля
                     if !websiteURL.isEmpty {
@@ -88,6 +89,7 @@ struct SettingsView: View {
                         .autocorrectionDisabled()
                         .focused($focusedField, equals: .email)
                         .lineLimit(2...4)
+                        .onSubmit { focusedField = nil }
 
                     // Кнопка очистки поля
                     if !requestEmail.isEmpty {
@@ -178,6 +180,16 @@ struct SettingsView: View {
             }
 
         }
+        // Панель Done занимает реальное место над клавиатурой,
+        // поэтому не перекрывает текстовое поле.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if focusedField != nil {
+                keyboardDismissBar
+                    // Свободная полоса между полем и панелью,
+                    // чтобы при вводе текста не было тесно.
+                    .padding(.top, 14)
+            }
+        }
         // Свой закреплённый заголовок вместо системного large title,
         // который сворачивается при скролле
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -215,14 +227,6 @@ struct SettingsView: View {
             // Всегда одинаковый вид — подтверждение показывает баннер выше
             ToolbarItem(placement: .topBarTrailing) {
                 saveToolbarButton
-            }
-
-            // Кнопка скрытия клавиатуры
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") {
-                    focusedField = nil
-                }
             }
         }
         .onAppear {
@@ -265,6 +269,23 @@ struct SettingsView: View {
     }
     
     // MARK: - Кнопка Save в навбаре
+
+    /// Полупрозрачная панель над клавиатурой. В отличие от
+    /// ToolbarItem(placement: .keyboard), safeAreaInset учитывается
+    /// в компоновке Form и не накладывается на поля.
+    private var keyboardDismissBar: some View {
+        HStack {
+            Spacer()
+            Button("Done") {
+                focusedField = nil
+            }
+            .fontWeight(.semibold)
+            .foregroundStyle(.green)
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 46)
+        .background(Color(.systemBackground).opacity(0.75))
+    }
 
     /// Save в правом верхнем углу — вид не меняется при нажатии,
     /// подтверждение показывает отдельный баннер под заголовком
