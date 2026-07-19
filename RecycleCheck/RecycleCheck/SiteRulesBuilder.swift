@@ -30,7 +30,6 @@ final class SiteRulesBuilder {
         let rules = SiteRules(
             baseURL: baseURL,
             builtAt: Date(),
-            processedPages: [baseURL],
             entries: entries
         )
         await StorageService.shared.saveSiteRules(rules)

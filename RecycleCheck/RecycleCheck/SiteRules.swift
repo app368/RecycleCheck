@@ -112,10 +112,6 @@ nonisolated struct SiteRules: Codable, Equatable {
     /// Дата сборки базы
     let builtAt: Date
 
-    /// Единственная страница, обработанная экстрактором.
-    /// Массив сохранён для проверки и отклонения старых многосайтовых баз.
-    let processedPages: [String]
-
     /// Все пункты правил, извлечённые с указанной страницы
     var entries: [RuleEntry]
 

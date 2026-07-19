@@ -204,10 +204,7 @@ final class StorageService {
             return nil
         }
 
-        let normalizedBaseURL = URLNormalizer.normalize(baseURL)
-        let normalizedProcessedPages = rules.processedPages.map(URLNormalizer.normalize)
-        guard URLNormalizer.normalize(rules.baseURL) == normalizedBaseURL,
-              normalizedProcessedPages == [normalizedBaseURL] else {
+        guard URLNormalizer.normalize(rules.baseURL) == URLNormalizer.normalize(baseURL) else {
             return nil
         }
         return rules
