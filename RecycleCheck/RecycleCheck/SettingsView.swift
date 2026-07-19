@@ -328,11 +328,10 @@ struct SettingsView: View {
         UserDefaults.standard.set(requestEmail, forKey: "settings_request_email")
         focusedField = nil
 
-        // Если URL изменился — сбрасываем кэш и базу правил старого сайта.
+        // Если URL изменился — сбрасываем базу правил старого сайта.
         // Новую сборку запускает только сам пользователь кнопкой Update
         let urlChanged = newURL != previousURL && !newURL.isEmpty
         if urlChanged {
-            storage.clearTargetURLsCache()
             storage.clearSiteRules()
             updateResult = nil
         }

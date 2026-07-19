@@ -112,18 +112,14 @@ nonisolated struct SiteRules: Codable, Equatable {
     /// Дата сборки базы
     let builtAt: Date
 
-    /// Страницы, обработанные экстрактором (для статуса в Settings и отладки)
+    /// Единственная страница, обработанная экстрактором.
+    /// Массив сохранён для проверки и отклонения старых многосайтовых баз.
     let processedPages: [String]
 
-    /// Все пункты правил со всех страниц
+    /// Все пункты правил, извлечённые с указанной страницы
     var entries: [RuleEntry]
 
-    /// Строка состояния для Settings: «6 pages · 42 rules»
-    var summary: String {
-        "\(processedPages.count) pages · \(entries.count) rules"
-    }
-
-    /// Пустая ли база (страницы обработаны, но пунктов не извлечено)
+    /// Пустая ли база (страница обработана, но пунктов не извлечено)
     var isEmpty: Bool {
         entries.isEmpty
     }

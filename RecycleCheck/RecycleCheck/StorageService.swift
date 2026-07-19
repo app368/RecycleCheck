@@ -16,9 +16,6 @@ final class StorageService {
     private enum Keys {
         static let userProfile = "recyclecheck_user_profile"
         static let checkHistory = "recyclecheck_check_history"
-        static let cachedTargetURLs = "recyclecheck_cached_target_urls"
-        static let cachedBaseURL = "recyclecheck_cached_base_url"
-        static let cachedTargetURLsDate = "recyclecheck_cached_target_urls_date"
     }
     
     private init() {}
@@ -176,41 +173,6 @@ final class StorageService {
         try? FileManager.default.removeItem(at: filePath)
     }
     
-    // MARK: - Кэш целевых страниц сайта (СП3.3)
-    
-    /// Сохранение списка целевых URL для указанного базового URL сайта.
-    /// Ключ кэша хранится в нормализованном виде, дата сборки — рядом
-    func saveTargetURLs(_ urls: [String], forBaseURL baseURL: String) {
-        defaults.set(urls, forKey: Keys.cachedTargetURLs)
-        defaults.set(URLNormalizer.normalize(baseURL), forKey: Keys.cachedBaseURL)
-        defaults.set(Date(), forKey: Keys.cachedTargetURLsDate)
-    }
-
-    /// Дата последней сборки кэша целевых URL.
-    /// nil — кэш пуст или собран до появления датировки
-    func targetURLsCacheDate() -> Date? {
-        defaults.object(forKey: Keys.cachedTargetURLsDate) as? Date
-    }
-
-    /// Загрузка списка целевых URL из кэша.
-    /// Возвращает nil, если кэш пуст или baseURL изменился.
-    /// Ключи сравниваются в нормализованном виде — сырой ключ,
-    /// сохранённый до появления нормализации, тоже матчится
-    func loadTargetURLs(forBaseURL baseURL: String) -> [String]? {
-        guard let cachedBase = defaults.string(forKey: Keys.cachedBaseURL),
-              URLNormalizer.normalize(cachedBase) == URLNormalizer.normalize(baseURL) else {
-            return nil
-        }
-        return defaults.stringArray(forKey: Keys.cachedTargetURLs)
-    }
-    
-    /// Очистка кэша целевых URL (при смене сайта)
-    func clearTargetURLsCache() {
-        defaults.removeObject(forKey: Keys.cachedTargetURLs)
-        defaults.removeObject(forKey: Keys.cachedBaseURL)
-        defaults.removeObject(forKey: Keys.cachedTargetURLsDate)
-    }
-
     // MARK: - База правил сайта (списочная архитектура, П1)
     // База может быть объёмной, поэтому хранится JSON-файлом в Documents,
     // а не в UserDefaults. Даты — в ISO 8601, JSON с отступами:
