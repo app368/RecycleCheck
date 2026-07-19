@@ -186,6 +186,7 @@ struct CaptureView: View {
                     // сидит внутри белого фона
                     .buttonStyle(.plain)
                 }
+                .sharedBackgroundVisibility(.hidden)
             }
         }
         
@@ -372,6 +373,7 @@ struct CaptureView: View {
                     .autocapitalization(.none)
                     .focused($focusedField, equals: .material)
             }
+            .padding(.top, 16)
 
             // Поле: Название предмета
             VStack(alignment: .leading, spacing: 4) {

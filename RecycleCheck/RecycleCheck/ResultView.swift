@@ -95,6 +95,7 @@ struct ResultView: View {
                 // иначе синяя капсула сидит внутри белого фона
                 .buttonStyle(.plain)
             }
+            .sharedBackgroundVisibility(.hidden)
         }
 
         // MARK: - Переход к отправке email (СП5)
