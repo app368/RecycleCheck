@@ -42,6 +42,11 @@ struct CaptureView: View {
 
     /// ID сохранённой записи истории — для дозаписи confirmation в ResultView (СП4.1)
     @State private var historyEntryID: UUID?
+
+    /// Якоря и состояние плавающей стрелки на этапе описания предмета
+    private let topAnchorID = "capture-top"
+    private let bottomAnchorID = "capture-bottom"
+    @State private var isAtBottom = false
     
     /// Фокус для управления клавиатурой
     @FocusState private var focusedField: RecognitionField?
@@ -61,10 +66,14 @@ struct CaptureView: View {
     private let storage = StorageService.shared
     private let visionService = VisionService.shared
 
+    private var isShowingItemDescription: Bool {
+        recognition?.isApplicable == true
+    }
+
     /// Заголовок отражает текущий этап одного и того же экрана:
     /// добавление фото, распознавание, затем описание предмета.
     private var pageTitle: LocalizedStringKey {
-        if recognition?.isApplicable == true {
+        if isShowingItemDescription {
             return "Item Description"
         }
 
@@ -72,52 +81,80 @@ struct CaptureView: View {
     }
     
     var body: some View {
-        ScrollView {
-            // До распознавания элементов мало — им свободнее (24);
-            // с карточкой описания — плотнее (14), чтобы кнопка проверки
-            // помещалась на экране вместе с фото
-            VStack(spacing: recognition == nil ? 24 : 14) {
+        ScrollViewReader { proxy in
+            ScrollView {
+                // До распознавания элементов мало — им свободнее (24);
+                // с карточкой описания — плотнее (14), чтобы кнопка проверки
+                // помещалась на экране вместе с фото
+                VStack(spacing: recognition == nil ? 24 : 14) {
 
-                // MARK: - Область фотографии
+                    // MARK: - Область фотографии
 
-                photoSection
-                
-                // MARK: - Кнопки выбора источника фото (до распознавания)
+                    photoSection
+                        .id(topAnchorID)
 
-                if recognition == nil && !isRecognizing {
-                    sourceButtons
-                        // Дополнительный воздух между фото и кнопками источника
-                        .padding(.top, 12)
-                }
+                    // MARK: - Кнопки выбора источника фото (до распознавания)
 
-                // MARK: - Кнопка распознавания (Шаг 1)
+                    if recognition == nil && !isRecognizing {
+                        sourceButtons
+                            // Дополнительный воздух между фото и кнопками источника
+                            .padding(.top, 12)
+                    }
 
-                if capturedImage != nil && recognition == nil && !isRecognizing {
-                    recognizeButton
-                        // Вдвое больше обычного отступа от кнопок Camera/Gallery
-                        .padding(.top, 24)
-                }
-                
-                // MARK: - Индикатор распознавания
-                
-                if isRecognizing {
-                    recognizingIndicator
-                }
-                
-                // MARK: - Результат распознавания
-                
-                if let recognition = recognition {
-                    if recognition.isApplicable {
-                        // Категория item → карточка с редактированием + кнопка Search
-                        recognitionCard
-                        searchButton
-                    } else {
-                        // Категория bulky / otherObjects / unclear → плашка с сообщением
-                        rejectionCard(recognition: recognition)
+                    // MARK: - Кнопка распознавания (Шаг 1)
+
+                    if capturedImage != nil && recognition == nil && !isRecognizing {
+                        recognizeButton
+                            // Вдвое больше обычного отступа от кнопок Camera/Gallery
+                            .padding(.top, 24)
+                    }
+
+                    // MARK: - Индикатор распознавания
+
+                    if isRecognizing {
+                        recognizingIndicator
+                    }
+
+                    // MARK: - Результат распознавания
+
+                    if let recognition = recognition {
+                        if recognition.isApplicable {
+                            // Категория item → карточка с редактированием + кнопка Search
+                            recognitionCard
+                            searchButton
+
+                            // Маркер конца контента управляет направлением стрелки
+                            Color.clear
+                                .frame(height: 12)
+                                .id(bottomAnchorID)
+                                .onScrollVisibilityChange(threshold: 0.5) { visible in
+                                    isAtBottom = visible
+                                }
+                        } else {
+                            // Категория bulky / otherObjects / unclear → плашка с сообщением
+                            rejectionCard(recognition: recognition)
+                        }
                     }
                 }
+                .padding()
             }
-            .padding()
+            .overlay(alignment: .bottomTrailing) {
+                if isShowingItemDescription && focusedField == nil {
+                    ScrollJumpButton(
+                        isAtBottom: isAtBottom,
+                        tint: accent
+                    ) {
+                        withAnimation {
+                            proxy.scrollTo(
+                                isAtBottom ? topAnchorID : bottomAnchorID,
+                                anchor: isAtBottom ? .top : .bottom
+                            )
+                        }
+                    }
+                    .padding(.trailing, 12)
+                    .padding(.bottom, 8)
+                }
+            }
         }
         .pinnedLargeNavigationTitle(pageTitle)
         .scrollDismissesKeyboard(.interactively)
@@ -582,6 +619,7 @@ struct CaptureView: View {
         recycleItem = nil
         searchResult = nil
         historyEntryID = nil
+        isAtBottom = false
     }
 }
 

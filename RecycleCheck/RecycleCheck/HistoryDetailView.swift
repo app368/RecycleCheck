@@ -73,25 +73,17 @@ struct HistoryDetailView: View {
                 // дошли до конца страницы. arrow.down/up — со «стержнем»
                 // (хвостиком), не просто уголок chevron
                 .overlay(alignment: .bottomTrailing) {
-                    Button {
+                    ScrollJumpButton(
+                        isAtBottom: isAtBottom,
+                        tint: statusColor
+                    ) {
                         withAnimation {
                             proxy.scrollTo(
                                 isAtBottom ? topAnchorID : bottomAnchorID,
                                 anchor: isAtBottom ? .top : .bottom
                             )
                         }
-                    } label: {
-                        Image(systemName: isAtBottom ? "arrow.up" : "arrow.down")
-                            .font(.title)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(statusColor)
-                            .frame(width: 60, height: 60)
-                            // Одинаковая длительность смены направления
-                            // в обе стороны — независимо от инерции скролла
-                            .animation(.easeInOut(duration: 0.2), value: isAtBottom)
                     }
-                    .buttonStyle(.glass)
-                    .buttonBorderShape(.circle)
                     .padding(.trailing, 12)
                     .padding(.bottom, 8)
                 }
