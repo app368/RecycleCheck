@@ -8,6 +8,7 @@
 
 /* Begin PBXFileReference section */
 		27C67BC32F8DD32F0054F0AD /* RecycleCheck.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RecycleCheck.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		27C67BD12F8DD3300054F0AD /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -32,6 +33,7 @@
 		27C67BBA2F8DD32F0054F0AD = {
 			isa = PBXGroup;
 			children = (
+				27C67BD12F8DD3300054F0AD /* Signing.xcconfig */,
 				27C67BC52F8DD32F0054F0AD /* RecycleCheck */,
 				27C67BC42F8DD32F0054F0AD /* Products */,
 			);
@@ -247,13 +249,13 @@
 		};
 		27C67BCF2F8DD3300054F0AD /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 27C67BD12F8DD3300054F0AD /* Signing.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "RecycleCheck needs camera access to photograph items for recycling check";
@@ -268,7 +270,6 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.RecycleCheck;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -283,13 +284,13 @@
 		};
 		27C67BD02F8DD3300054F0AD /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 27C67BD12F8DD3300054F0AD /* Signing.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "RecycleCheck needs camera access to photograph items for recycling check";
@@ -304,7 +305,6 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.RecycleCheck;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
