@@ -13,3 +13,6 @@ RecycleCheck/RecycleCheck/Secrets.swift
 # Старые копии файлов — не версионируются
 Old Copy/
 03 Context Files/Old files - GIT Ignore/
+
+# Личные настройки подписи — Team ID и bundle ID (шаблон: Signing.xcconfig)
+RecycleCheck/Local.xcconfig

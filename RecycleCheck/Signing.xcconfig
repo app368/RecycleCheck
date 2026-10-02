@@ -1,0 +1,11 @@
+// MARK: - Подпись приложения
+// Задача: убрать Team ID и bundle ID из публичного репозитория.
+// Здесь заглушки для всех, кто скачал код.
+// Настоящие значения — в Local.xcconfig рядом (в git не попадает).
+// Как использовать: создать Local.xcconfig и вписать туда свои
+// DEVELOPMENT_TEAM и PRODUCT_BUNDLE_IDENTIFIER.
+
+DEVELOPMENT_TEAM =
+PRODUCT_BUNDLE_IDENTIFIER = com.example.RecycleCheck
+
+#include? "Local.xcconfig"
