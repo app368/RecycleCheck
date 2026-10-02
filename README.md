@@ -43,7 +43,7 @@ Both files are listed in `.gitignore` and stay on your machine.
 
 ## Accuracy and project status
 
-RecycleCheck can be wrong: by my preliminary estimates, in roughly 5–7% of cases. Both the recognition of the item and the match against the city's lists are done by AI.
+RecycleCheck can be wrong: by my preliminary estimates, in roughly 10% of cases. Both the recognition of the item and the match against the city's lists are done by AI.
 
 The project is currently on hold: I got absorbed in another app. If you would like to work on it, improving the accuracy of the results (recognition, matching, handling of unclear cases) is the most useful place to start. Contributions are welcome.
 
