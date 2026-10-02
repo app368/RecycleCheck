@@ -4,6 +4,8 @@ An iOS app that tells you whether an item can go in the recycling bin, according
 
 Take a photo of an item, and RecycleCheck answers **yes**, **no**, or **not sure**, quoting the exact line from the city's list that the answer is based on.
 
+The app uses AI (Anthropic's Claude) to recognize items and match them against the city's lists.
+
 ## How it works
 
 1. **Refresh.** The app reads the city's recycling page and builds a local list of allowed and not-allowed items.
