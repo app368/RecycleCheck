@@ -41,6 +41,12 @@ Both files are listed in `.gitignore` and stay on your machine.
 
 > **Note.** The API key is compiled into the app. This is fine for personal use, but an app distributed to others should call the API through a backend instead.
 
+## Accuracy and project status
+
+RecycleCheck can be wrong. Both the recognition of the item and the match against the city's lists are done by AI, so treat an answer as a hint, not an official ruling. When in doubt, check with your local recycling program.
+
+The project is currently on hold. If you would like to work on it, improving the accuracy of the results (recognition, matching, handling of unclear cases) is the most useful place to start. Contributions are welcome.
+
 ## License
 
 [MIT](LICENSE)
