@@ -41,6 +41,18 @@ Both files are listed in `.gitignore` and stay on your machine.
 
 > **Note.** The API key is compiled into the app. This is fine for personal use, but an app distributed to others should call the API through a backend instead.
 
+## Recycling resources in the United States
+
+The repository also includes a reference guide to about 150 recycling information resources across the United States: [docs/Recycling_Resources_USA.md](docs/Recycling_Resources_USA.md). Main sections:
+
+1. [Federal Resources](docs/Recycling_Resources_USA.md#1-federal-resources) — EPA guides, tools and maps
+2. [National Organizations](docs/Recycling_Resources_USA.md#2-national-organizations) — nationwide services, nonprofits and programs
+3. [Official State Government Websites](docs/Recycling_Resources_USA.md#3-official-state-government-websites) — all 50 states
+4. [Municipal Recycling Websites](docs/Recycling_Resources_USA.md#4-municipal-recycling-websites) — major cities
+5. [Specialized Recycling Programs](docs/Recycling_Resources_USA.md#5-specialized-recycling-programs) — batteries, electronics, paint, mattresses, textiles and more
+6. [Commercial Operators & Industry Organizations](docs/Recycling_Resources_USA.md#6-commercial-operators--industry-organizations)
+7. [Summary of the Entire Research](docs/Recycling_Resources_USA.md#7-summary-of-the-entire-research) — common patterns in how recycling information is presented
+
 ## Accuracy and project status
 
 RecycleCheck can be wrong: by my preliminary estimates, in roughly 10% of cases. Both the recognition of the item and the match against the city's lists are done by AI.
