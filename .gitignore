@@ -1,23 +1,23 @@
 # macOS
 .DS_Store
 
-# Xcode — пользовательские настройки и артефакты сборки
+# Xcode — user settings and build artifacts
 xcuserdata/
 *.xcuserstate
 DerivedData/
 build/
 
-# Секреты — реальный API-ключ живёт только локально (шаблон: Secrets.swift.example)
+# Secrets — the real API key lives only locally (template: Secrets.swift.example)
 RecycleCheck/RecycleCheck/Secrets.swift
 
-# Старые копии файлов — не версионируются
+# Old file copies — not versioned
 Old Copy/
 
-# Рабочие заметки проекта — только локально
+# Project work notes — local only
 03 Context Files/
 
-# Личные настройки подписи — Team ID и bundle ID (шаблон: Signing.xcconfig)
+# Personal signing settings — Team ID and bundle ID (template: Signing.xcconfig)
 RecycleCheck/Local.xcconfig
 
-# Правила проекта для Claude — только локально
+# Project rules for Claude — local only
 CLAUDE.md
