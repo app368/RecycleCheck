@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - Экран профиля пользователя (СП6)
 // Опциональный ввод и редактирование реквизитов: имя, email, телефон.
@@ -15,6 +16,29 @@ struct ProfileView: View {
 
     /// Подсказка у заголовка Email — про автоподстановку отправителя
     @State private var showEmailHint = false
+
+    // MARK: - Состояние резервной копии (экспорт / импорт)
+
+    /// Идёт сборка архива / восстановление из архива
+    @State private var isExporting = false
+    @State private var isImporting = false
+
+    /// Готовый файл копии и показ меню «Поделиться»
+    @State private var exportedURL: URL?
+    @State private var showShareSheet = false
+
+    /// Выбор файла копии и подтверждение замены данных
+    @State private var showImporter = false
+    @State private var pendingImportURL: URL?
+    @State private var showImportConfirm = false
+
+    /// Сообщение о результате экспорта / импорта
+    @State private var showBackupAlert = false
+    @State private var backupAlertTitle = ""
+    @State private var backupAlertMessage = ""
+
+    /// Тип файла копии — Apple Archive (.aar)
+    private static let backupFileType = UTType(filenameExtension: "aar") ?? .data
 
     /// Фокус для управления клавиатурой
     @FocusState private var focusedField: Field?
@@ -108,6 +132,39 @@ struct ProfileView: View {
                 }
             }
 
+            // MARK: - Резервная копия: экспорт и импорт всех данных
+            Section {
+                Button {
+                    exportData()
+                } label: {
+                    HStack {
+                        Label("Export data", systemImage: "square.and.arrow.up")
+                        Spacer()
+                        if isExporting {
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(isExporting || isImporting)
+
+                Button {
+                    showImporter = true
+                } label: {
+                    HStack {
+                        Label("Import data", systemImage: "square.and.arrow.down")
+                        Spacer()
+                        if isImporting {
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(isExporting || isImporting)
+            } header: {
+                Text("Data")
+            } footer: {
+                Text("Back up checks, photos and settings to a file, or restore them from a backup.")
+            }
+
             // MARK: - Кнопка очистки данных — отделена от пояснительного
             // текста пустой секцией-разделителем
             Section {
@@ -184,6 +241,34 @@ struct ProfileView: View {
         } message: {
             Text("The user name and email will be removed from this app.")
         }
+        // Меню «Поделиться» для готового файла копии
+        .sheet(isPresented: $showShareSheet) {
+            if let url = exportedURL {
+                ShareSheet(items: [url])
+            }
+        }
+        // Выбор файла копии для импорта
+        .fileImporter(isPresented: $showImporter,
+                      allowedContentTypes: [Self.backupFileType]) { result in
+            handlePickedFile(result)
+        }
+        // Подтверждение: импорт заменяет все данные
+        .alert("Replace all data?", isPresented: $showImportConfirm) {
+            Button("Cancel", role: .cancel) {
+                discardPendingImport()
+            }
+            Button("Replace", role: .destructive) {
+                importData()
+            }
+        } message: {
+            Text("Current checks and photos will be replaced by the backup.")
+        }
+        // Результат экспорта / импорта
+        .alert(backupAlertTitle, isPresented: $showBackupAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(backupAlertMessage)
+        }
     }
     
     // MARK: - Загрузка профиля из локального хранилища
@@ -210,6 +295,76 @@ struct ProfileView: View {
         name = ""
         email = ""
         storage.saveProfile(.empty)
+    }
+
+    // MARK: - Экспорт: архив всех данных → меню «Поделиться»
+
+    private func exportData() {
+        isExporting = true
+        Task {
+            do {
+                exportedURL = try await BackupService.shared.makeBackup()
+                showShareSheet = true
+            } catch {
+                showBackupResult(title: "Export failed", message: error.localizedDescription)
+            }
+            isExporting = false
+        }
+    }
+
+    // MARK: - Импорт: файл выбран → копия к себе → подтверждение
+
+    private func handlePickedFile(_ result: Result<URL, Error>) {
+        guard case .success(let url) = result else { return }
+
+        // Доступ к файлу вне песочницы приложения — только на время копирования
+        let hasAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if hasAccess { url.stopAccessingSecurityScopedResource() }
+        }
+
+        let copy = FileManager.default.temporaryDirectory.appendingPathComponent(url.lastPathComponent)
+        try? FileManager.default.removeItem(at: copy)
+        do {
+            try FileManager.default.copyItem(at: url, to: copy)
+            pendingImportURL = copy
+            showImportConfirm = true
+        } catch {
+            showBackupResult(title: "Import failed", message: error.localizedDescription)
+        }
+    }
+
+    /// Подтверждено — заменяем данные содержимым копии
+    private func importData() {
+        guard let url = pendingImportURL else { return }
+        isImporting = true
+        Task {
+            do {
+                try await BackupService.shared.restoreBackup(from: url)
+                // Имя и email на экране — из восстановленного профиля
+                loadProfile()
+                showBackupResult(title: "Import complete",
+                                 message: "Your checks, photos and settings have been restored.")
+            } catch {
+                showBackupResult(title: "Import failed", message: error.localizedDescription)
+            }
+            discardPendingImport()
+            isImporting = false
+        }
+    }
+
+    /// Удаляет временную копию выбранного файла
+    private func discardPendingImport() {
+        if let url = pendingImportURL {
+            try? FileManager.default.removeItem(at: url)
+        }
+        pendingImportURL = nil
+    }
+
+    private func showBackupResult(title: String, message: String) {
+        backupAlertTitle = title
+        backupAlertMessage = message
+        showBackupAlert = true
     }
 }
 

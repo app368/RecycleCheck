@@ -124,8 +124,8 @@ final class StorageService {
     
     // MARK: - Фотографии
     
-    /// Папка для хранения фотографий
-    private var photosDirectory: URL {
+    /// Папка для хранения фотографий (открыта для BackupService)
+    var photosDirectory: URL {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let photosPath = documentsPath.appendingPathComponent("RecyclePhotos")
         
@@ -178,8 +178,8 @@ final class StorageService {
     // а не в UserDefaults. Даты — в ISO 8601, JSON с отступами:
     // файл удобно читать при отладке экстрактора
 
-    /// URL файла базы правил в Documents
-    private var siteRulesFileURL: URL {
+    /// URL файла базы правил в Documents (открыт для BackupService)
+    var siteRulesFileURL: URL {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         return documentsPath.appendingPathComponent("site_rules.json")
     }
