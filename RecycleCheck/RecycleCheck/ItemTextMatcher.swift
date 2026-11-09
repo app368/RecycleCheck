@@ -1,14 +1,16 @@
 import Foundation
 
 // MARK: - Первый круг проверки: точное совпадение по тексту (гибридный вердикт)
-// Ищет пункты базы, в которых есть ВСЕ слова названия предмета.
+// Ищет пункты базы, в которых слова названия предмета стоят ПОДРЯД, как фраза.
 // Без ИИ: быстро, бесплатно, предсказуемо. Не нашлось — вердикт уходит
 // на второй круг (смысловое сопоставление у Claude, VerdictService).
 //
 // Слова сравниваются без учёта регистра и единственного/множественного
 // числа: «plastic bottle» находится в «plastic bottles» и в «plastic
-// bottles that held motor oil», но «glass jar» не находится в «window
-// glass» — там нет слова «jar».
+// bottles that held motor oil». Совпадение — только фразой: «plastic can»
+// не находится в «plastic 6-pack can holders», «metal can» — в «metal
+// paint cans». Такие случаи, как и «glass jar» в «glass bottles and
+// jars», уходят на второй круг — ИИ разберёт их по смыслу.
 //
 // Пункты с отрицанием («Any plastic that is not shaped like a bottle»)
 // текстом не разобрать: в них есть те же слова, но смысл обратный.
@@ -42,11 +44,19 @@ enum ItemTextMatcher {
 
     // MARK: - Сравнение
 
-    /// Пункты базы, содержащие все слова названия предмета
+    /// Пункты базы, в которых слова названия предмета стоят подряд
     private static func matchingEntries(for itemName: String, in entries: [RuleEntry]) -> [RuleEntry] {
         let itemWords = normalizedWords(itemName)
         guard !itemWords.isEmpty else { return [] }
-        return entries.filter { itemWords.isSubset(of: normalizedWords($0.itemText)) }
+        return entries.filter { containsPhrase(itemWords, in: normalizedWords($0.itemText)) }
+    }
+
+    /// Есть ли в тексте пункта слова фразы подряд, в том же порядке
+    private static func containsPhrase(_ phrase: [String], in words: [String]) -> Bool {
+        guard words.count >= phrase.count else { return false }
+        return (0...(words.count - phrase.count)).contains { start in
+            Array(words[start..<(start + phrase.count)]) == phrase
+        }
     }
 
     /// Есть ли в тексте пункта отрицание
@@ -58,13 +68,13 @@ enum ItemTextMatcher {
 
     // MARK: - Нормализация
 
-    /// Слова текста в едином виде: нижний регистр, без знаков препинания,
-    /// без служебных слов, в единственном числе
-    private static func normalizedWords(_ text: String) -> Set<String> {
-        let words = text.lowercased()
+    /// Слова текста в едином виде и в исходном порядке: нижний регистр,
+    /// без знаков препинания, без служебных слов, в единственном числе
+    private static func normalizedWords(_ text: String) -> [String] {
+        text.lowercased()
             .components(separatedBy: CharacterSet.letters.inverted)
             .filter { !$0.isEmpty && !stopWords.contains($0) }
-        return Set(words.map(singular))
+            .map(singular)
     }
 
     /// Простое приведение к единственному числу по окончанию:
