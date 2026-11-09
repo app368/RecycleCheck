@@ -152,12 +152,19 @@ struct HistoryDetailView: View {
     // MARK: - Секция статуса
     
     private var statusSection: some View {
-        HStack(spacing: 8) {
-            Image(systemName: statusIcon)
-                .font(.title2)
-            Text(statusText)
-                .font(.title3)
-                .fontWeight(.semibold)
+        VStack(spacing: 4) {
+            HStack(spacing: 8) {
+                Image(systemName: statusIcon)
+                    .font(.title2)
+                Text(statusText)
+                    .font(.title3)
+                    .fontWeight(.semibold)
+            }
+
+            // Отсылка к блоку исключений — только для «да, с исключениями»
+            if entry.result?.status == .recyclableWithExceptions {
+                ExceptionsHintText()
+            }
         }
         .foregroundStyle(statusColor)
         .frame(maxWidth: .infinity, alignment: .center)

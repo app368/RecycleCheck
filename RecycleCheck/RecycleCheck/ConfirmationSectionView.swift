@@ -81,6 +81,27 @@ struct ConfirmationSectionView: View {
     // вердикта; кнопка перевода — в правом нижнем углу
 
     private func subsections(for confirmation: Confirmation) -> some View {
+        VStack(spacing: 14) {
+            citationCard(
+                title: "Citation from list",
+                citations: [RuleCitation(citation: confirmation.citation,
+                                         sourceSection: confirmation.sourceSection)]
+            )
+
+            // Блок исключений — только для «Recyclable, with exceptions»:
+            // пункты списка «нельзя», совпавшие с тем же предметом
+            if let exceptions = confirmation.exceptions, !exceptions.isEmpty {
+                citationCard(title: "Exceptions", citations: exceptions)
+            }
+        }
+    }
+
+    // MARK: - Карточка цитат
+    // Общий вид для подтверждения и исключений: иконка цитаты слева,
+    // заголовок по центру, кнопка перевода справа; ниже — пункты списка
+    // (секция курсивом в цвете вердикта + цитата bold в кавычках)
+
+    private func citationCard(title: String, citations: [RuleCitation]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             // Строка-заголовок: иконка цитаты слева, титул по центру,
             // кнопка перевода в правом верхнем углу
@@ -90,15 +111,34 @@ struct ConfirmationSectionView: View {
                         .foregroundStyle(tint)
                     Spacer()
                     if #available(iOS 17.4, *) {
-                        TranslateButton(text: confirmation.citation, tint: tint)
+                        TranslateButton(
+                            text: citations.map(\.citation).joined(separator: "\n"),
+                            tint: tint
+                        )
                     }
                 }
-                Text("Citation from list")
+                Text(title)
                     .font(.headline)
             }
 
+            ForEach(Array(citations.enumerated()), id: \.offset) { index, item in
+                // Несколько исключений разделяются тонкой линией
+                if index > 0 {
+                    Divider()
+                }
+                citationText(item)
+            }
+        }
+        .padding()
+        .background(.gray.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    /// Один пункт: название секции сайта и дословная цитата
+    private func citationText(_ item: RuleCitation) -> some View {
+        VStack(spacing: 8) {
             // Название секции сайта — по центру, курсив + bold, в цвете вердикта
-            if let section = confirmation.sourceSection {
+            if let section = item.sourceSection {
                 Text("\(section):")
                     .font(.headline)
                     .fontWeight(.bold)
@@ -108,7 +148,7 @@ struct ConfirmationSectionView: View {
             }
 
             // Сама цитата — bold, чёрная, по центру, в кавычках
-            Text("\u{201C}\(confirmation.citation)\u{201D}")
+            Text("\u{201C}\(item.citation)\u{201D}")
                 .font(.body)
                 .fontWeight(.bold)
                 .multilineTextAlignment(.center)
@@ -116,9 +156,18 @@ struct ConfirmationSectionView: View {
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .center)
         }
-        .padding()
-        .background(.gray.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+// MARK: - Подсказка к статусу «Recyclable, with exceptions»
+// Отсылка к блоку исключений ниже. Общая для ResultView и HistoryDetailView
+
+struct ExceptionsHintText: View {
+    var body: some View {
+        Text("See Exceptions below")
+            .font(.subheadline)
+            .italic()
+            .foregroundStyle(.secondary)
     }
 }
 

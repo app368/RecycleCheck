@@ -217,8 +217,9 @@ enum RecycleStatus: String, Codable {
         case .recyclable:
             return .green
         case .recyclableWithExceptions:
-            // Временно как у «да» — цвет выбирается отдельной задачей
-            return .green
+            // Жёлто-зелёный #8FB31D — «да, но»: близко к «да», но отличается.
+            // Другие варианты: тот же зелёный, янтарный #E8A317
+            return Color(red: 0.56, green: 0.70, blue: 0.11)
         case .notRecyclable:
             // Финальный выбор: Coral #FF6B6B, прозрачность 80%
             // Другие протестированные варианты: Apricot #FF8A65 (80%),

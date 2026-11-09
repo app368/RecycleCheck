@@ -56,6 +56,12 @@ struct ResultView: View {
 
                     resultLine
 
+                    // Отсылка к блоку исключений — только для «да, с исключениями»
+                    if result.status == .recyclableWithExceptions {
+                        ExceptionsHintText()
+                            .padding(.top, -6)
+                    }
+
                     // MARK: - Подтверждение вердикта (для да/нет)
 
                     confirmationSection
@@ -305,6 +311,30 @@ struct ResultView: View {
         case .notFound:
             return "questionmark.circle.fill"
         }
+    }
+}
+
+#Preview("Recyclable, with exceptions") {
+    NavigationStack {
+        ResultView(
+            item: RecycleItem(recognition: ItemRecognition(
+                category: .item, material: "plastic", itemType: "bottle", contentsUse: ["beverage"]
+            )),
+            result: SearchResult(
+                status: .recyclableWithExceptions,
+                sourceURL: "https://example-recycling-site.com",
+                confirmation: Confirmation(
+                    citation: "Plastic bottles",
+                    sourceSection: "Allowed plastic items",
+                    exceptions: [
+                        RuleCitation(
+                            citation: "Plastic bottles that held motor oil",
+                            sourceSection: "Not allowed"
+                        )
+                    ]
+                )
+            )
+        )
     }
 }
 
