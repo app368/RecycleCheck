@@ -269,7 +269,7 @@ struct HistoryRowView: View {
     /// Иконка статуса
     private var statusIcon: String {
         switch entry.result?.status {
-        case .recyclable:
+        case .recyclable, .recyclableWithExceptions:
             return "checkmark.circle.fill"
         case .notRecyclable:
             return "xmark.circle.fill"

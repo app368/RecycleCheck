@@ -56,6 +56,12 @@ struct ResultView: View {
 
                     resultLine
 
+                    // Отсылка к блоку исключений — только для «да, с исключениями»
+                    if result.status == .recyclableWithExceptions {
+                        ExceptionsHintText()
+                            .padding(.top, -6)
+                    }
+
                     // MARK: - Подтверждение вердикта (для да/нет)
 
                     confirmationSection
@@ -90,6 +96,9 @@ struct ResultView: View {
                         .padding(.vertical, 6)
                         .background(buttonFillColor)
                         .clipShape(Capsule())
+                        // Панель навигации iOS 26+ сжимает кнопку и обрезает текст —
+                        // фиксируем естественный размер капсулы
+                        .fixedSize()
                 }
                 // Убираем стандартную подложку кнопки навбара —
                 // иначе синяя капсула сидит внутри белого фона
@@ -298,13 +307,37 @@ struct ResultView: View {
     /// SF Symbol, соответствующий статусу вердикта
     private var statusSystemImage: String {
         switch result.status {
-        case .recyclable:
+        case .recyclable, .recyclableWithExceptions:
             return "checkmark.circle.fill"
         case .notRecyclable:
             return "xmark.circle.fill"
         case .notFound:
             return "questionmark.circle.fill"
         }
+    }
+}
+
+#Preview("Recyclable, with exceptions") {
+    NavigationStack {
+        ResultView(
+            item: RecycleItem(recognition: ItemRecognition(
+                category: .item, material: "plastic", itemType: "bottle", contentsUse: ["beverage"]
+            )),
+            result: SearchResult(
+                status: .recyclableWithExceptions,
+                sourceURL: "https://example-recycling-site.com",
+                confirmation: Confirmation(
+                    citation: "Plastic bottles",
+                    sourceSection: "Allowed plastic items",
+                    exceptions: [
+                        RuleCitation(
+                            citation: "Plastic bottles that held motor oil",
+                            sourceSection: "What\u{2019}s NOT allowed"
+                        )
+                    ]
+                )
+            )
+        )
     }
 }
 
