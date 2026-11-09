@@ -287,7 +287,7 @@ struct HistoryDetailView: View {
     
     private var statusIcon: String {
         switch entry.result?.status {
-        case .recyclable:
+        case .recyclable, .recyclableWithExceptions:
             return "checkmark.circle.fill"
         case .notRecyclable:
             return "xmark.circle.fill"

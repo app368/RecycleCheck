@@ -161,16 +161,35 @@ struct Confirmation: Codable, Equatable {
 
     /// Секция сайта, где найден подтверждающий пункт
     var sourceSection: String? = nil
+
+    /// Исключения — пункты списка «нельзя», совпавшие с тем же предметом
+    /// (например «plastic bottles that held motor oil» при разрешённых
+    /// «plastic bottles»). Заполняется только для статуса
+    /// recyclableWithExceptions; nil — исключений нет (и у старых записей истории)
+    var exceptions: [RuleCitation]? = nil
+}
+
+/// Цитата пункта списка с сайта: дословный текст + секция, где он найден.
+/// Используется для исключений в подтверждении вердикта
+struct RuleCitation: Codable, Equatable {
+    /// Дословная цитата пункта с сайта
+    let citation: String
+
+    /// Секция сайта, где найден пункт; nil — секции нет
+    var sourceSection: String? = nil
 }
 
 // MARK: - Результат поиска (СП3, СП4)
 
 /// Статус пригодности предмета для переработки.
-/// Три исхода вердикта: да (recyclable) / нет (notRecyclable) /
-/// неясно (notFound — приложение не смогло определить по спискам сайта).
+/// Исходы вердикта: да (recyclable) / да, с исключениями
+/// (recyclableWithExceptions — предмет есть в обоих списках сайта) /
+/// нет (notRecyclable) / неясно (notFound — приложение не смогло
+/// определить по спискам сайта).
 /// rawValue сохраняется в истории — не менять; текст для UI — в displayText
 enum RecycleStatus: String, Codable {
     case recyclable = "Recyclable"
+    case recyclableWithExceptions = "Recyclable, with exceptions"
     case notRecyclable = "Not recyclable"
     case notFound = "Not found on website"
 
@@ -181,6 +200,8 @@ enum RecycleStatus: String, Codable {
         switch self {
         case .recyclable:
             return "Recyclable"
+        case .recyclableWithExceptions:
+            return "Recyclable, with exceptions"
         case .notRecyclable:
             return "Not recyclable"
         case .notFound:
@@ -194,6 +215,9 @@ enum RecycleStatus: String, Codable {
     var color: Color {
         switch self {
         case .recyclable:
+            return .green
+        case .recyclableWithExceptions:
+            // Временно как у «да» — цвет выбирается отдельной задачей
             return .green
         case .notRecyclable:
             // Финальный выбор: Coral #FF6B6B, прозрачность 80%

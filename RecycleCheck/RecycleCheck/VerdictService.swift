@@ -1,15 +1,17 @@
 import Foundation
 
-// MARK: - Сервис вердикта по базе списков (П3)
-// Ядро списочной архитектуры: определяет пригодность предмета к переработке
-// ОДНИМ вопросом к Claude — «есть ли предмет в списках сайта?».
-// Сайт при проверке НЕ читается: матчинг идёт против заранее собранной
-// базы правил (SiteRulesBuilder, П2).
+// MARK: - Сервис вердикта по базе списков (П3, гибридная проверка)
+// Определяет пригодность предмета к переработке по заранее собранной
+// базе правил сайта (SiteRulesBuilder, П2). Сайт при проверке НЕ читается.
 //
-// Семантика сопоставления остаётся у модели: «mug» ↔ «drinkware»,
-// «container» ≠ «bottle/jar» — этого не умеет сравнение строк.
+// Два круга поиска пунктов, совпадающих с предметом:
+// 1. Точное совпадение по тексту (ItemTextMatcher) — без ИИ.
+// 2. Не нашлось — Claude ищет пункты по смыслу: «mug» ↔ «drinkware»,
+//    «container» ≠ «bottle/jar» — этого не умеет сравнение строк.
+// Решение по найденным пунктам одно для обоих кругов (makeResult):
+// только «можно» → да; только «нельзя» → нет; оба списка → да,
+// с исключениями; ничего → неясно.
 //
-// Три исхода: recyclable (да) / notRecyclable (нет) / notFound (неясно).
 // Fail-safe: ошибка сети или разбора → «неясно», а не ложный вердикт.
 // Нет собранной базы → отдельная ошибка (пользователю предложить Update).
 
@@ -47,20 +49,32 @@ final class VerdictService {
             throw VerdictError.noRulesBase
         }
 
-        // Один вызов Claude: предмет против пронумерованных пунктов базы
+        // Первый круг: точное совпадение по тексту, без ИИ
+        if let matches = ItemTextMatcher.confidentMatches(
+            for: recognition.displayName, in: rules.entries
+        ) {
+            return makeResult(from: matches)
+        }
+
+        // Второй круг: Claude ищет пункты, совпадающие с предметом по смыслу
         let prompt = buildPrompt(recognition: recognition, entries: rules.entries)
 
-        let decision: RawDecision
+        let indices: [Int]
         do {
             let rawResponse = try await sendRequest(prompt: prompt)
-            decision = try parseDecision(from: rawResponse)
+            indices = try parseMatches(from: rawResponse)
         } catch {
             // Fail-safe: сеть или разбор подвели — отдаём «неясно»,
             // а не ложный вердикт
             return SearchResult(status: .notFound)
         }
 
-        return makeResult(from: decision, entries: rules.entries)
+        // Индексы → пункты базы; невалидные и повторы отбрасываются
+        let matches = Array(Set(indices))
+            .sorted()
+            .filter { rules.entries.indices.contains($0) }
+            .map { rules.entries[$0] }
+        return makeResult(from: matches)
     }
 
     // MARK: - Формирование промпта
@@ -82,8 +96,8 @@ final class VerdictService {
         }
 
         return """
-        You decide whether an item may go in the household RECYCLING bin, \
-        using ONLY the rules list from a recycling website below.
+        You find which rules from a recycling website's list refer to a given \
+        item, using ONLY the rules list below.
 
         ITEM TO CHECK:
         - name: \(recognition.displayName)
@@ -93,22 +107,25 @@ final class VerdictService {
 
         RULES LIST (each line: [index] allowed|not_allowed: item text):
         \(rulesBlock)
-        DECISION PROCEDURE:
-        1. Find the rule whose items semantically cover THIS item. Use meaning, \
-        not word overlap: e.g. a "mug" is covered by "drinking glasses, dishware, \
-        or drinkware"; a food-storage "container" is NOT a "bottle" or "jar".
-        2. The item's FORM must genuinely match. Sharing only a material is NOT a \
-        match: glass being accepted as "bottles and jars" does NOT cover a glass \
-        "container" or a glass "mug".
-        3. If BOTH an allowed rule and a not_allowed rule could apply, the \
-        not_allowed rule WINS (exclusions override).
-        4. Choose the verdict:
-        - "recyclable" — the item clearly matches an allowed rule and no not_allowed rule excludes it.
-        - "not_recyclable" — the item clearly matches a not_allowed rule.
-        - "unclear" — the item is not clearly covered by any rule. When in doubt, choose "unclear". A wrong "recyclable"/"not_recyclable" is worse than "unclear".
+        HOW TO MATCH:
+        1. A rule matches if its items semantically cover THIS kind of item. \
+        Use meaning, not word overlap: e.g. a "mug" is covered by "drinking \
+        glasses, dishware, or drinkware"; a food-storage "container" is NOT a \
+        "bottle" or "jar".
+        2. The item's FORM must genuinely match. Sharing only a material is NOT \
+        a match: glass being accepted as "bottles and jars" does NOT cover a \
+        glass "container" or a glass "mug".
+        3. Include ALL matching rules from BOTH lists. A not_allowed rule that \
+        names a narrower variant of the same item (e.g. "plastic bottles that \
+        held motor oil" for a plastic bottle) also matches.
+        4. A rule that excludes everything EXCEPT certain shapes (e.g. "any \
+        plastic that is not shaped like a bottle") does NOT match an item of \
+        an allowed shape.
+        5. If you are not sure that a rule covers the item, leave it out. If no \
+        rule covers the item, return an empty list.
 
         Respond with ONLY a JSON object, no other text:
-        {"verdict": "recyclable" | "not_recyclable" | "unclear", "rule_index": <index of the matched rule, or null for unclear>}
+        {"matches": [<indices of all matching rules>]}
         """
     }
 
@@ -123,7 +140,7 @@ final class VerdictService {
             "model": "claude-sonnet-5",
             // Thinking выключен: парсер ждёт JSON в первом блоке ответа
             "thinking": ["type": "disabled"],
-            "max_tokens": 200,
+            "max_tokens": 300,
             "messages": [
                 ["role": "user", "content": prompt]
             ]
@@ -157,18 +174,12 @@ final class VerdictService {
 
     // MARK: - Разбор ответа
 
-    /// Решение модели: вердикт + индекс подтверждающего пункта
-    private struct RawDecision: Decodable {
-        let verdict: String
-        let ruleIndex: Int?
-
-        enum CodingKeys: String, CodingKey {
-            case verdict
-            case ruleIndex = "rule_index"
-        }
+    /// Ответ модели: индексы пунктов, совпавших с предметом по смыслу
+    private struct RawMatches: Decodable {
+        let matches: [Int]
     }
 
-    private func parseDecision(from rawText: String) throws -> RawDecision {
+    private func parseMatches(from rawText: String) throws -> [Int] {
         let cleaned = rawText
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "```json", with: "")
@@ -178,46 +189,62 @@ final class VerdictService {
         guard let jsonData = cleaned.data(using: .utf8) else {
             throw NSError(domain: "VerdictService", code: -2)
         }
-        return try JSONDecoder().decode(RawDecision.self, from: jsonData)
+        return try JSONDecoder().decode(RawMatches.self, from: jsonData).matches
     }
 
     // MARK: - Сборка результата
 
-    /// Превращает решение модели в SearchResult.
-    /// Для да/нет прикрепляет подтверждение из совпавшего пункта
-    /// (дословная цитата, секция, условия, подготовка, ссылка на страницу)
-    private func makeResult(from decision: RawDecision, entries: [RuleEntry]) -> SearchResult {
-        let status: RecycleStatus
-        switch decision.verdict.lowercased() {
-        case "recyclable":
-            status = .recyclable
-        case "not_recyclable":
-            status = .notRecyclable
-        default:
-            // «unclear» и любые неожиданные значения — безопасный исход «неясно»
+    /// Решение по найденным пунктам — одно для обоих кругов:
+    /// только «можно» → Recyclable; только «нельзя» → Not recyclable;
+    /// оба списка → Recyclable, with exceptions (пункты «нельзя» идут
+    /// в исключения); ничего → «неясно»
+    private func makeResult(from matches: [RuleEntry]) -> SearchResult {
+        let allowed = matches.filter { $0.verdict == .allowed }
+        let notAllowed = matches.filter { $0.verdict == .notAllowed }
+
+        switch (mainEntry(of: allowed), mainEntry(of: notAllowed)) {
+        case let (allowedEntry?, nil):
+            return makeSearchResult(.recyclable, mainEntry: allowedEntry)
+        case let (nil, notAllowedEntry?):
+            return makeSearchResult(.notRecyclable, mainEntry: notAllowedEntry)
+        case let (allowedEntry?, _?):
+            var result = makeSearchResult(.recyclableWithExceptions, mainEntry: allowedEntry)
+            result.confirmation?.exceptions = makeCitations(from: notAllowed)
+            return result
+        case (nil, nil):
             return SearchResult(status: .notFound)
         }
+    }
 
-        // Подтверждающий пункт по индексу; без валидного пункта — «неясно»,
-        // чтобы да/нет всегда были подкреплены цитатой
-        guard let index = decision.ruleIndex, entries.indices.contains(index) else {
-            return SearchResult(status: .notFound)
-        }
-        let entry = entries[index]
+    /// Главный пункт списка — самый короткий, то есть самый прямой
+    /// («plastic bottles», а не «plastic bottles, tubs and jugs»)
+    private func mainEntry(of entries: [RuleEntry]) -> RuleEntry? {
+        entries.min { $0.itemText.count < $1.itemText.count }
+    }
 
-        return SearchResult(
+    /// Результат со статусом и подтверждением из главного пункта
+    private func makeSearchResult(_ status: RecycleStatus, mainEntry entry: RuleEntry) -> SearchResult {
+        SearchResult(
             status: status,
             sourceURL: entry.origin.pageURL,
-            confirmation: makeConfirmation(from: entry)
+            confirmation: Confirmation(
+                citation: entry.origin.quote,
+                sourceSection: section(of: entry)
+            )
         )
     }
 
-    /// Строит подтверждение из совпавшего пункта базы:
-    /// дословная цитата + секция сайта (концепция «простого ответа»)
-    private func makeConfirmation(from entry: RuleEntry) -> Confirmation {
-        Confirmation(
-            citation: entry.origin.quote,
-            sourceSection: entry.origin.section.isEmpty ? nil : entry.origin.section
-        )
+    /// Цитаты исключений: по одной на каждый уникальный пункт «нельзя»
+    private func makeCitations(from entries: [RuleEntry]) -> [RuleCitation] {
+        var seenQuotes = Set<String>()
+        return entries.compactMap { entry in
+            guard seenQuotes.insert(entry.origin.quote).inserted else { return nil }
+            return RuleCitation(citation: entry.origin.quote, sourceSection: section(of: entry))
+        }
+    }
+
+    /// Секция сайта пункта; nil — секции нет
+    private func section(of entry: RuleEntry) -> String? {
+        entry.origin.section.isEmpty ? nil : entry.origin.section
     }
 }
