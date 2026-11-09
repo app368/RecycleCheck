@@ -332,7 +332,7 @@ struct ResultView: View {
                     exceptions: [
                         RuleCitation(
                             citation: "Plastic bottles that held motor oil",
-                            sourceSection: "Not allowed"
+                            sourceSection: "What\u{2019}s NOT allowed"
                         )
                     ]
                 )
