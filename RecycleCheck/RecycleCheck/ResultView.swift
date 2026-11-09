@@ -96,6 +96,9 @@ struct ResultView: View {
                         .padding(.vertical, 6)
                         .background(buttonFillColor)
                         .clipShape(Capsule())
+                        // Панель навигации iOS 26+ сжимает кнопку и обрезает текст —
+                        // фиксируем естественный размер капсулы
+                        .fixedSize()
                 }
                 // Убираем стандартную подложку кнопки навбара —
                 // иначе синяя капсула сидит внутри белого фона
