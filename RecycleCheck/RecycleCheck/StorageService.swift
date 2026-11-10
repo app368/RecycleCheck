@@ -214,4 +214,45 @@ final class StorageService {
     func clearSiteRules() {
         try? FileManager.default.removeItem(at: siteRulesFileURL)
     }
+
+    // MARK: - Ответы города (уточнения из писем команды сайта)
+    // Отдельный файл: Refresh базы сайта его не трогает
+
+    /// URL файла ответов города в Documents (открыт для BackupService)
+    var cityAnswersFileURL: URL {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        return documentsPath.appendingPathComponent("city_answers.json")
+    }
+
+    /// Все сохранённые ответы города; пустой массив — ответов нет
+    func loadCityAnswers() -> [CityAnswerRule] {
+        guard let data = try? Data(contentsOf: cityAnswersFileURL) else { return [] }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return (try? decoder.decode([CityAnswerRule].self, from: data)) ?? []
+    }
+
+    /// Сохранение всех ответов города (перезаписывает файл)
+    func saveCityAnswers(_ rules: [CityAnswerRule]) {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let data = try? encoder.encode(rules) else { return }
+        try? data.write(to: cityAnswersFileURL)
+    }
+
+    /// Добавление пунктов из нового ответа
+    func addCityAnswers(_ rules: [CityAnswerRule]) {
+        saveCityAnswers(loadCityAnswers() + rules)
+    }
+
+    /// Удаление одного пункта
+    func deleteCityAnswer(id: UUID) {
+        saveCityAnswers(loadCityAnswers().filter { $0.id != id })
+    }
+
+    /// Сколько пунктов сохранено из ответа на вопрос по этой проверке
+    func cityAnswerCount(forHistoryEntry id: UUID) -> Int {
+        loadCityAnswers().filter { $0.historyEntryID == id }.count
+    }
 }
