@@ -10,6 +10,9 @@ struct SettingsView: View {
     @State private var websiteURL: String = ""
     @State private var requestEmail: String = ""
 
+    /// Ответы города — уточнения из писем команды сайта
+    @State private var cityAnswers: [CityAnswerRule] = []
+
     /// Всплывающий зелёный баннер-подтверждение (вместо смены текста
     /// кнопки Save на «Saved»)
     @State private var toastMessage: String?
@@ -178,6 +181,33 @@ struct SettingsView: View {
                 }
             }
 
+            // MARK: - Ответы города — уточнения из писем команды сайта
+            Section {
+                if cityAnswers.isEmpty {
+                    Text("No answers yet. Open a check with a sent email in History and tap Add reply from the site.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(cityAnswers) { rule in
+                        CityAnswerRow(rule: rule)
+                    }
+                    .onDelete(perform: deleteCityAnswers)
+                }
+            } header: {
+                Text("Answers from the city")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.primary)
+                    .textCase(nil)
+            } footer: {
+                Text("Rules from the site team's email replies. They take priority over the website lists. Swipe left to delete.")
+                    .font(.subheadline)
+                    .italic()
+                    .padding(8)
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+
         }
         // Панель Done занимает реальное место над клавиатурой,
         // поэтому не перекрывает текстовое поле.
@@ -291,7 +321,17 @@ struct SettingsView: View {
     private func loadSettings() {
         websiteURL = AppConfig.recyclingWebsiteURL
         requestEmail = AppConfig.requestEmail
+        cityAnswers = StorageService.shared.loadCityAnswers()
         updateDataStatus()
+    }
+
+    // MARK: - Удаление ответов города (смахиванием)
+
+    private func deleteCityAnswers(at offsets: IndexSet) {
+        for index in offsets {
+            StorageService.shared.deleteCityAnswer(id: cityAnswers[index].id)
+        }
+        cityAnswers.remove(atOffsets: offsets)
     }
 
     // MARK: - Статус данных о переработке
