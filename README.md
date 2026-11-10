@@ -11,7 +11,15 @@ The app uses AI (Anthropic's Claude) to recognize items and match them against t
 1. **Refresh.** The app reads the city's recycling page and builds a local list of allowed and not-allowed items.
 2. **Recognize.** You photograph an item, and Claude describes what it is. You can edit the description.
 3. **Check.** Claude matches the item against the lists by meaning, not by exact words (a *mug* counts as *drinkware*).
-4. **Answer.** Yes, no, or not sure, with the quote from the list. For "not sure", the app can draft an email question to the city's recycling team.
+4. **Answer.** Yes, no, yes with exceptions, or not sure, with the quote from the list. "Recyclable, with exceptions" means the item is allowed, but a narrower variant of it is not (for example, plastic bottles are allowed, but not small prescription bottles). For "not sure", the app can draft an email question to the city's recycling team.
+
+### Answers from the city
+
+When the city's recycling team replies to a question, paste the reply into the check's details. Claude turns it into rules with exact quotes from the email, you review them, and the app uses them in later checks. Answers from the city take priority over the website lists, because they are usually more specific. Saved answers are listed in Settings.
+
+### Backup
+
+Profile → **Export data** saves all checks, photos, settings and answers from the city into one file; **Import data** restores them.
 
 The default source is the City of Portland, Oregon. The website URL and contact email can be changed in Settings.
 
@@ -57,7 +65,7 @@ The repository also includes a reference guide to about 150 recycling informatio
 
 RecycleCheck can be wrong: by my preliminary estimates, in roughly 10% of cases. Both the recognition of the item and the match against the city's lists are done by AI.
 
-The project is currently on hold: I got absorbed in another app. If you would like to work on it, improving the accuracy of the results (recognition, matching, handling of unclear cases) is the most useful place to start. Contributions are welcome.
+Development has resumed after a pause. If you would like to work on it, improving the accuracy of the results (recognition, matching, handling of unclear cases) is the most useful place to start. Contributions are welcome.
 
 ## License
 
