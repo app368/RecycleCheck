@@ -131,11 +131,13 @@ final class VerdictService {
         cracker box). Waxed, coated, plastic-lined or food-soiled paper matches the \
         not_allowed rules about coatings instead.
         4. Include ALL matching rules from BOTH lists. A not_allowed rule that \
-        names a narrower variant of the same item also matches, but ONLY if \
-        that variant could apply to THIS item given what it was used for: \
-        "prescription medicine bottles smaller than 2 by 2 inches" can apply \
-        to a medicine bottle; "bottles that held motor oil" does NOT apply to \
-        a bottle that held juice.
+        names a narrower variant of the same item also matches, UNLESS the \
+        item's description above rules that variant out. Keep it when the \
+        description says nothing about it (size, parts or contents unknown): \
+        "prescription medicine bottles smaller than 2 by 2 inches" for a \
+        medicine bottle of unknown size; "pans with plastic handles" for a \
+        metal pan. Leave it out when the description excludes it: "bottles \
+        that held motor oil" does NOT apply to a bottle that held juice.
         5. A rule that excludes everything EXCEPT certain shapes (e.g. "any \
         plastic that is not shaped like a bottle") does NOT match an item of \
         an allowed shape.

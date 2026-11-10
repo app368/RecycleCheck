@@ -77,6 +77,9 @@ final class CityAnswerExtractionService {
         from the asked item only as far as the answer itself allows.
         - "quote": the sentence from the answer that supports the rule, copied \
         character-for-character.
+        If the answer gives exceptions or conditions (e.g. "boxes are fine unless \
+        they are wax-coated"), split them into separate "allowed" and "not_allowed" \
+        rules.
         Skip greetings, thanks and anything that does not say what may or may not go \
         in the recycling bin. If there is no such statement, return an empty list.
 
