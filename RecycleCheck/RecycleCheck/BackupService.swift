@@ -4,7 +4,7 @@ import System
 
 // MARK: - Резервная копия данных: экспорт и импорт
 // Экспорт собирает все данные приложения в один архив .aar (Apple Archive):
-//   backup.json      — профиль, история проверок, настройки сайта (читаемый JSON)
+//   backup.json      — профиль, история проверок, настройки сайта, ответы города (JSON)
 //   site_rules.json  — база правил сайта (если собрана)
 //   RecyclePhotos/   — фото проверок
 // Импорт ЗАМЕНЯЕТ текущие данные содержимым архива (слияния нет).
@@ -29,6 +29,9 @@ struct BackupPayload: Codable {
     /// Настройки сайта; nil — пользователь не менял значение по умолчанию
     let websiteURL: String?
     let requestEmail: String?
+
+    /// Ответы города; nil — копия сделана до появления этой функции
+    let cityAnswers: [CityAnswerRule]?
 }
 
 // MARK: - Ошибки
@@ -82,7 +85,8 @@ final class BackupService {
             profile: storage.loadProfile(),
             history: storage.loadHistory(),
             websiteURL: defaults.string(forKey: SettingsKeys.websiteURL),
-            requestEmail: defaults.string(forKey: SettingsKeys.requestEmail)
+            requestEmail: defaults.string(forKey: SettingsKeys.requestEmail),
+            cityAnswers: storage.loadCityAnswers()
         )
         let json = try Self.makeEncoder().encode(payload)
 
@@ -133,6 +137,7 @@ final class BackupService {
         storage.saveHistory(payload.history)
         setOrRemove(payload.websiteURL, forKey: SettingsKeys.websiteURL)
         setOrRemove(payload.requestEmail, forKey: SettingsKeys.requestEmail)
+        storage.saveCityAnswers(payload.cityAnswers ?? [])
     }
 
     // MARK: - Вспомогательное

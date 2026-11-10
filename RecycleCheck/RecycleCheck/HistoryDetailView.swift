@@ -20,6 +20,10 @@ struct HistoryDetailView: View {
     /// Флаг перехода к отправке email (СП5)
     @State private var showEmailComposer = false
 
+    /// Экран ответа города и число сохранённых из него пунктов
+    @State private var showReplySheet = false
+    @State private var replyRulesCount = 0
+
     /// Якоря верха/низа контента — для плавающей стрелки скролла
     private let topAnchorID = "top"
     private let bottomAnchorID = "bottom"
@@ -102,6 +106,13 @@ struct HistoryDetailView: View {
             SuggestItemView(item: entry.item, historyEntryID: entry.id)
         }
 
+        // MARK: - Ответ города: вставка письма и черновики пунктов
+
+        .sheet(isPresented: $showReplySheet, onDismiss: updateReplyRulesCount) {
+            CityReplyView(entry: entry)
+        }
+        .onAppear(perform: updateReplyRulesCount)
+
         // MARK: - Страница источника внутри приложения
 
         .sheet(isPresented: $showSourcePage) {
@@ -119,6 +130,11 @@ struct HistoryDetailView: View {
                     .ignoresSafeArea()
             }
         }
+    }
+
+    /// Сколько пунктов сохранено из ответов города по этой проверке
+    private func updateReplyRulesCount() {
+        replyRulesCount = StorageService.shared.cityAnswerCount(forHistoryEntry: entry.id)
     }
 
     // MARK: - Секция фотографии
@@ -227,6 +243,27 @@ struct HistoryDetailView: View {
                 label: "Email sent",
                 value: entry.emailSent ? "Yes" : "No"
             )
+
+            // Ответ города по этой проверке — только если вопрос был отправлен
+            if entry.emailSent {
+                if replyRulesCount > 0 {
+                    InfoRow(
+                        label: "Reply from the city",
+                        value: "Saved · \(replyRulesCount) rule\(replyRulesCount == 1 ? "" : "s")"
+                    )
+                }
+                Button {
+                    showReplySheet = true
+                } label: {
+                    Label(replyRulesCount > 0 ? "Add another reply" : "Add reply from the site",
+                          systemImage: "envelope.open")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        // Сиреневый — пункты из письма делает ИИ
+                        .foregroundStyle(Color(red: 0.62, green: 0.46, blue: 0.86))
+                }
+                .padding(.top, 4)
+            }
         }
         .padding()
         .background(Color(.systemGray6))
