@@ -103,16 +103,27 @@ final class VerdictService {
         Use meaning, not word overlap: e.g. a "mug" is covered by "drinking \
         glasses, dishware, or drinkware"; a food-storage "container" is NOT a \
         "bottle" or "jar".
-        2. The item's FORM must genuinely match. Sharing only a material is NOT \
-        a match: glass being accepted as "bottles and jars" does NOT cover a \
-        glass "container" or a glass "mug".
-        3. Include ALL matching rules from BOTH lists. A not_allowed rule that \
-        names a narrower variant of the same item (e.g. "plastic bottles that \
-        held motor oil" for a plastic bottle) also matches.
-        4. A rule that excludes everything EXCEPT certain shapes (e.g. "any \
+        2. For PLASTIC and GLASS the item's FORM must genuinely match. Sharing \
+        only a material is NOT a match: glass being accepted as "bottles and \
+        jars" does NOT cover a glass "container" or a glass "mug". A glass item \
+        that is not a bottle or a jar (baking dish, food-storage container, \
+        plate, bowl, cup) is dishware: it matches rules about dishware or \
+        drinkware.
+        3. For PAPER and CARDBOARD match by the KIND of paper, not by shape: \
+        site examples such as "cereal boxes" stand for plain paperboard \
+        packaging in general (a cardboard salt canister, a toothpaste box, a \
+        cracker box). Waxed, coated, plastic-lined or food-soiled paper matches the \
+        not_allowed rules about coatings instead.
+        4. Include ALL matching rules from BOTH lists. A not_allowed rule that \
+        names a narrower variant of the same item also matches, but ONLY if \
+        that variant could apply to THIS item given what it was used for: \
+        "prescription medicine bottles smaller than 2 by 2 inches" can apply \
+        to a medicine bottle; "bottles that held motor oil" does NOT apply to \
+        a bottle that held juice.
+        5. A rule that excludes everything EXCEPT certain shapes (e.g. "any \
         plastic that is not shaped like a bottle") does NOT match an item of \
         an allowed shape.
-        5. If you are not sure that a rule covers the item, leave it out. If no \
+        6. If you are not sure that a rule covers the item, leave it out. If no \
         rule covers the item, return an empty list.
 
         Respond with ONLY a JSON object, no other text:
@@ -131,7 +142,9 @@ final class VerdictService {
             "model": "claude-sonnet-5",
             // Thinking выключен: парсер ждёт JSON в первом блоке ответа
             "thinking": ["type": "disabled"],
-            "max_tokens": 300,
+            // С запасом: модель иногда рассуждает перед JSON, и при малом
+            // лимите ответ обрывается раньше, чем появится сам JSON
+            "max_tokens": 1024,
             "messages": [
                 ["role": "user", "content": prompt]
             ]
@@ -170,14 +183,14 @@ final class VerdictService {
         let matches: [Int]
     }
 
+    /// Модель иногда пишет рассуждение перед JSON, несмотря на просьбу
+    /// отвечать только JSON. Берём последний объект {...} из ответа —
+    /// вложенных скобок в {"matches": [...]} нет
     private func parseMatches(from rawText: String) throws -> [Int] {
-        let cleaned = rawText
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "```json", with: "")
-            .replacingOccurrences(of: "```", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard let jsonData = cleaned.data(using: .utf8) else {
+        guard let open = rawText.range(of: "{", options: .backwards),
+              let close = rawText.range(of: "}", options: .backwards),
+              open.lowerBound < close.lowerBound,
+              let jsonData = String(rawText[open.lowerBound..<close.upperBound]).data(using: .utf8) else {
             throw NSError(domain: "VerdictService", code: -2)
         }
         return try JSONDecoder().decode(RawMatches.self, from: jsonData).matches
