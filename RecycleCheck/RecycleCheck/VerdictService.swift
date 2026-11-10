@@ -47,8 +47,14 @@ final class VerdictService {
             throw VerdictError.noRulesBase
         }
 
+        // Ответы города идут в общий список после пунктов сайта
+        let cityAnswers = StorageService.shared.loadCityAnswers().map(\.asRuleEntry)
+        let allEntries = rules.entries + cityAnswers
+        let firstCityAnswerIndex = rules.entries.count
+
         // Claude ищет пункты, совпадающие с предметом по смыслу
-        let prompt = buildPrompt(recognition: recognition, entries: rules.entries)
+        let prompt = buildPrompt(recognition: recognition, entries: allEntries,
+                                 firstCityAnswerIndex: firstCityAnswerIndex)
 
         let indices: [Int]
         do {
@@ -60,12 +66,15 @@ final class VerdictService {
             return SearchResult(status: .notFound)
         }
 
-        // Индексы → пункты базы; невалидные и повторы отбрасываются
-        let matches = Array(Set(indices))
+        // Индексы → пункты; невалидные и повторы отбрасываются
+        let matched = Array(Set(indices))
             .sorted()
-            .filter { rules.entries.indices.contains($0) }
-            .map { rules.entries[$0] }
-        return makeResult(from: matches)
+            .filter { allEntries.indices.contains($0) }
+
+        // Ответ города главнее сайта: если он нашёлся, решение — только по нему
+        let cityMatched = matched.filter { $0 >= firstCityAnswerIndex }
+        let chosen = cityMatched.isEmpty ? matched : cityMatched
+        return makeResult(from: chosen.map { allEntries[$0] })
     }
 
     // MARK: - Формирование промпта
@@ -73,7 +82,9 @@ final class VerdictService {
     /// Собирает промпт: описание предмета + пронумерованный список пунктов базы.
     /// Пункты подаются компактно (индекс, вердикт, текст, секция, материал) —
     /// этого достаточно для семантического сопоставления
-    private func buildPrompt(recognition: ItemRecognition, entries: [RuleEntry]) -> String {
+    /// - Parameter firstCityAnswerIndex: с этого индекса в entries идут ответы города
+    private func buildPrompt(recognition: ItemRecognition, entries: [RuleEntry],
+                             firstCityAnswerIndex: Int) -> String {
         let usedFor = recognition.contentsUse
             .filter { $0.lowercased() != "n/a" }
             .joined(separator: ", ")
@@ -83,7 +94,9 @@ final class VerdictService {
         for (index, entry) in entries.enumerated() {
             let material = entry.material.map { " material=\($0)" } ?? ""
             let section = entry.origin.section.isEmpty ? "" : " section=\"\(entry.origin.section)\""
-            rulesBlock += "[\(index)] \(entry.verdict.rawValue): \(entry.itemText)\(material)\(section)\n"
+            // Ответ города помечается источником вместо секции сайта
+            let source = index >= firstCityAnswerIndex ? " source=\"reply from the city\"" : section
+            rulesBlock += "[\(index)] \(entry.verdict.rawValue): \(entry.itemText)\(material)\(source)\n"
         }
 
         return """
@@ -98,6 +111,9 @@ final class VerdictService {
 
         RULES LIST (each line: [index] allowed|not_allowed: item text):
         \(rulesBlock)
+        Rules marked source="reply from the city" are the recycling team's own \
+        email answers about specific items. Match them the same way as the others.
+
         HOW TO MATCH:
         1. A rule matches if its items semantically cover THIS kind of item. \
         Use meaning, not word overlap: e.g. a "mug" is covered by "drinking \
@@ -230,7 +246,8 @@ final class VerdictService {
     private func makeSearchResult(_ status: RecycleStatus, mainEntry entry: RuleEntry) -> SearchResult {
         SearchResult(
             status: status,
-            sourceURL: entry.origin.pageURL,
+            // У ответа города ссылки на страницу нет — источник письмо
+            sourceURL: entry.origin.pageURL.isEmpty ? nil : entry.origin.pageURL,
             confirmation: Confirmation(
                 citation: entry.origin.quote,
                 sourceSection: section(of: entry)
